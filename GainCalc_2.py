@@ -69,9 +69,9 @@ def plot():
     y_data, bins, patches = ax1.hist(new_charge, bins=N_HIST_BINS, 
             facecolor='orange')
     # not sure why he does this bc this gets overwritten
-    plt.yscale('log', nonposy='clip')
-    plt.xlabel('Coulombs')
-    plt.ylabel('Counts')
+    # plt.yscale('log', nonposy='clip')
+    # plt.xlabel('Coulombs')
+    # plt.ylabel('Counts')
     #plt.show()
 
  
@@ -157,7 +157,7 @@ def plot():
     # using single gaussian with double peak parameters...?
     y_fit = norm(bin_centers, *popt) # The *popt passes the arguments to func
 
-    two_gauss_fit = double_gauss(bin_centers, *popt)
+    two_gauss_fit = double_gauss(bin_centers, *popt) # shouldn't it be evaulated for 2nd half of data? ...
 
     bin_centers = bin_centers*1E-12
 
@@ -186,7 +186,7 @@ def plot():
     # Plot the fits
     plt.plot(bin_centers, y_data, marker='*', lw=0, label='Output Charge Histogram')
     plt.plot(bin_centers, yfit_ped, label = '0 P.E. Gaussian Fit')
-    plt.plot(bin_centers, y_fit, label='1 P.E. Gaussian Fit') # why doesn't he use the two_gauss_fit?
+    plt.plot(bin_centers, two_gauss_fit, label='1 P.E. Gaussian Fit') # why doesn't he use the two_gauss_fit? doesn't make too much of a diff
 
     plt.plot(bin_centers, dbgauss_fit, label='Double Gaussian Fit')
 
