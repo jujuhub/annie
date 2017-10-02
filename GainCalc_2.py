@@ -1,9 +1,8 @@
 #!/opt/local/bin/python2.7
 # Gain calculation from histogram acquired from plotCSV.py
-# by Sam Crnkovich
-# sdcrnkovich@ucdavis.edu
+# by Sam Crnkovich <sdcrnkovich@ucdavis.edu>
 
-# modified by Julie He
+# modified by Julie He <juhe@ucdavis.edu>
 
 import numpy as np
 from scipy.optimize import curve_fit
@@ -17,7 +16,7 @@ DATAPATH='.'
 
 N_HIST_BINS=100
 E_CHARGE = 1.60217662E-19 # Coulombs
-NEG_CHARGE = -0.50e-11 # neg charge threshold for ignoring the weird frames
+NEG_CHARGE = -0.50e-11
 
 def plot():
     ######################################
@@ -35,7 +34,6 @@ def plot():
 
 
     # skips very negative charges from frames with dark pulse at start of frame
-    # threshold set above
     i=0
     new_charge = []
 

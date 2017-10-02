@@ -17,12 +17,11 @@ DATAPATH='.'
 
 N_HIST_BINS=100
 E_CHARGE = 1.60217662E-19 # Coulombs
-NEG_CHARGE = -0.50e-11 # neg charge threshold for ignoring the weird frames
+NEG_CHARGE = -0.50E-11 # neg charge threshold for ignoring the weird frames
 
 def plot():
     ######################################
-    # fits gaussians, plots, calculates gain & chi^2
-
+    
     def norm(x, mean, sd, n):
         # n: normalization constant of gaussian
         norm = (n/(np.sqrt(2*np.pi)*sd))*np.exp(-(x - mean)**2/(2*sd**2))
@@ -33,8 +32,40 @@ def plot():
     with open((DATAPATH + '/{0}').format(CHARGEDATAFILE)) as f1:
         charge = np.loadtxt(f1, dtype = float) # removed the .txt after {0}
 
+    # plot the charge distribution
+    fig0 = plt.figure()
+    ax0 = fig0.add_subplot(111)
 
-    # skips very negative charges from frames with dark pulse at start of frame
+    bin_freq, bin_edges, patches0 = ax0.hist(charge, bins=N_HIST_BINS, facecolor='orange')
+    plt.yscale('log')
+
+    bin_edges = 1E12*bin_edges
+    bin_centers0 = np.array(bin_edges[:-1]+(bin_edges[1]-bin_edges[0])/2.0) # midpoint of bin
+
+    # Bin uncertainties found using square root of N approx
+    uncert_data = []
+    for i in range(bin_freq.size):
+        uncert_data.append(np.sqrt(bin_freq[i]))
+        if uncert_data[i] == 0:
+            uncert_data[i] =  1
+
+
+    ######################################
+    # Fitting the 0 p.e. pedestal
+    # Take only first half of data where our pedestal is located
+
+    # Initial guess to the parameters of pedestal gaussian
+    ped_params = [0, 1, 1000]
+
+    popt_sub, pcov_sub = curve_fit(norm, bin_centers0[:len(bin_centers0)/2],
+                bin_freq[:len(bin_centers0)/2],
+                p0 = ped_params,
+                sigma = uncert_data[:len(bin_centers0)/2])
+
+    # take mean of 1st peak (pedestal) and subtract
+    print(popt_sub[0])
+    charge = charge - popt_sub[0]*1E-12
+
     i=0
     new_charge = []
 
@@ -48,46 +79,20 @@ def plot():
 
     new_charge = np.array(new_charge)
 
-
-    # plot the charge distribution
     fig = plt.figure()
     ax1 = fig.add_subplot(111)
+    
+    y_data, bins, patches = ax1.hist(new_charge, bins=N_HIST_BINS, facecolor='orange')
 
-    y_data, bins, patches = ax1.hist(new_charge, bins=N_HIST_BINS, 
-            facecolor='orange')
-    # not sure why he does this bc this gets overwritten
-    plt.yscale('log', nonposy='clip')
-    # plt.xlabel('Coulombs')
-    # plt.ylabel('Counts')
-    # plt.show()
-
-
-    # why multiply by 1E12 only to undo it later? bc gaussian is for high values
     bins = 1E12*bins
-    bin_centers = np.array(bins[:-1]+(bins[1]-bins[0])/2.0) #midpoint of bin
-
-    # Bin uncertainties found using square root of N approximation
-    uncert_data = []
-    for i in range(y_data.size):
-        uncert_data.append(np.sqrt(y_data[i]))
-        if uncert_data[i] == 0:
-            uncert_data[i] =  1
-
-
-    ######################################
-    # Fitting the 0 p.e. pedestal
-    # Take only first half of data (where our pedestal is located) // maybe find better selection of data
-
-    # Initial guess to the parameters of pedestal gaussian
-    ped_params = [0, 1, 1000]
+    bin_centers = np.array(bins[:-1]+(bins[1]-bins[0])/2.0)
 
     popt_ped, pcov_ped = curve_fit(norm, bin_centers[:len(bin_centers)/2],
                 y_data[:len(bin_centers)/2],
                 p0 = ped_params,
                 sigma = uncert_data[:len(bin_centers)/2])
 
-    yfit_ped = norm(bin_centers, *popt_ped) # should this be evaluated for 1st half of data only?
-
+    yfit_ped = norm(bin_centers, *popt_ped)
 
     # Now fit the 1 p.e. using a double gaussian fit
     gauss_approx = [1, 2, 100]
