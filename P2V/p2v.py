@@ -15,6 +15,8 @@ EXTRA=20
 
 def ratio():
 	F = open("peak2valley.txt", "a+")
+	F2 = open("ET_peak2valley.txt", "a+")
+	F3 = open("WB_peak2valley.txt", "a+")
 
 	print("attempting to open " + (DATAPATH + '/{0}').format(CHARGEDATAFILE))
 	with open((DATAPATH + '/{0}').format(CHARGEDATAFILE)) as f:
@@ -24,6 +26,7 @@ def ratio():
 	new_charge=[]
 
 	while(i < len(charge)):
+	# skip the frames where pulse appears too early
 		if(charge[i] > NEG_CHARGE):
 			new_charge.append(charge[i])
 		else:
@@ -46,11 +49,16 @@ def ratio():
 	
 	for i in range(50):
 		if (ydata[i] == spe_peak):
-			spe_i = i
+			spe_i = i # find index of SPE peak
 
 	print(spe_peak/min(ydata[ped_i:spe_i]))
 
 	F.write(str(spe_peak/min(ydata[ped_i:spe_i]))+'\n')
+
+	if (CHARGEDATAFILE[:2] == 'WB'): # condition affected by bash script
+		F3.write(str(spe_peak/min(ydata[ped_i:spe_i]))+'\n')
+	else:
+		F2.write(str(spe_peak/min(ydata[ped_i:spe_i]))+'\n')
 
 	return
 

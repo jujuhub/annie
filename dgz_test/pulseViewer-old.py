@@ -46,7 +46,7 @@ for counter, rows in enumerate(izip(*f)):
         #if fileNames[valCount] == 'wave7.txt':
         #       holderArray[valCount].append((int(val)-8000)/10. + 8000)
         #else:
-            holderArray[valCount].append(float(val))
+        holderArray[valCount].append(float(val))
         if (counter + 1)%arrayLength == 0:
             for countPlots, plotArray in enumerate(holderArray):
                 #finder.filter_sample(plotArray, display=True)

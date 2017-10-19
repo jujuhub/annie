@@ -5,7 +5,7 @@ import sys
 FILE = sys.argv[1]
 SAVEFILENAME = 'my_charges.txt'
 IMPEDANCE = 50. # Ohms
-dT = 2E-6 # s
+dT = 2E-10 # s
 
 if len(sys.argv) < 2:
     print("NO FILE INPUT")
@@ -42,35 +42,39 @@ charge = []
 voltage = 0.0
 pedestal = 0.0
 
-for i in range(len(data)):
-    try:
-        data[i] = float(data[i])
-    except ValueError:
-        data[i] = -1
+#for i in range(len(data)):
+#    try:
+#        data[i] = float(data[i])
+#    except ValueError:
+#        data[i] = -1
 
 counter = 0
 
 for val in data:
-    if (val > 3000. and val < 50000.):
-        holderArray.append((val-(2**14)*0.86)*1000./8192.)
-        counter += 1
+    try:
+        if (float(val) > 3000. and float(val) < 50000.):
+            holderArray.append((float(val)-(2**14)*0.86)*1000./8192.)
+            counter += 1
         
-        if counter%recordLength == 0: # if at end of frame
-            voltage = sum(holderArray)
-            pedestal = sum(holderArray[:int(0.05*recordLength)])*20. # fix
-            charge.append(-(voltage - pedestal)*dT/IMPEDANCE)
+            if counter%recordLength == 0: # if at end of frame
+                voltage = sum(holderArray)
+                pedestal = sum(holderArray[:int(0.05*recordLength)])*20. # fix
+                charge.append(-(voltage - pedestal)*dT/IMPEDANCE)
 
-            # plot event
-            plt.ylim((-300, 50))
-#            plt.plot(holderArray)
-#            plt.show()
+                # plot event
+#                plt.ylim((-30, 10)) # V
+#                plt.plot(holderArray)
+#                plt.show()
 
-            # clear for next event
-            holderArray = []
-            voltage = 0.0
-            pedestal = 0.0
+                # clear for next event
+                holderArray = []
+                voltage = 0.0
+                pedestal = 0.0
 
-    else: # skip header info
-#        print(val)
+#        else: # skip header info
+#            print(val)
+    except ValueError:
+        val = -1
+
 
 np.savetxt(('{0}').format(SAVEFILENAME), charge)
