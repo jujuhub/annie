@@ -1,101 +1,70 @@
 import numpy as np
-import pulseObject as pu
-import sys
-import random
 import matplotlib.pyplot as plt
+import sys
+import os
+from scipy import signal
+import re
+#import fastfilt as ff
+#import finder_interface as fi
+from scipy import signal
+from itertools import izip
 
+# Properties of the pulse of interest
 
-lengthOfWindow = 500
+arrayLength = 1030 # 4999 with 50k record length
 
-def getValidInput(fig):
-	holder = raw_input("Press h for a list of commands: ")
-	if not(plt.get_fignums()):
-		print pu.cactusTime('YOU CLOSED MY WINDOW')
-	elif holder.lower() == 'h':
-		print 'E to exit \nN to advance \nH for help \nW to change the length of the window'
-	elif holder.lower() == 'e':
-		plt.close(fig)
-		sys.exit(1)
-	elif holder == 'n':
-		plt.close(fig)
-		return(True)
-	elif holder == 'w':
-		holder = raw_input("Input a number for the window size: ")
-		while True:
-			try:
-				holder = int(holder)
-				global lengthOfWindow
-				lengthOfWindow = holder
-				break
-			except ValueError:
-				holder = raw_input("Please enter a number: ")
-				continue
-			return True		
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
 
+if len(sys.argv) < 2:
+    print 'NO FILE NAME INPUT'
+    sys.exit(1)
 
-def plotData(pulseObjects):
-	dataToPlot = []
-	keepGoing = True
-	startPoint = 0
-	while keepGoing == True:
-		fig = plt.figure()
+fileNames = []
+for val in sys.argv[1:]:
+    fileNames.append(val)
 
-		for val in pulseObjects:
-			fig.set_size_inches(val.size)
-			holderData = val.getData((startPoint, startPoint + lengthOfWindow))
-			dataToPlot.append(holderData)
+for val in fileNames:
+    try:
+        open(val)   # will be a permission error
+    except IOError:
+        print 'FILE ' + str(val) + ' NOT FOUND'
+        sys.exit(1)
 
-			#print 'LENGTH: ' + str(len(holderData))
-		
-		#print 'DATA FROM ' + str(counter*lengthOfWindow) + " TO " + str((counter+1)*lengthOfWindow) + " " + str(dataToPlot)
-		for num, val in enumerate(dataToPlot):
-				xVals = range(1, len(val) + 1)
-				plt.plot(xVals, val, label = pulseObjects[num].label)
-		plt.ticklabel_format(useOffset=False)
-		plt.xlabel('SAMPLES', fontsize = 24)
-		plt.ylabel('COUNTS ', fontsize = 24)
-		plt.title('SAMPLES ' + str(startPoint) + ' TO ' + str(startPoint + len(dataToPlot[0])), fontsize = 32)
-		plt.legend()
-		#plt.imshow(xVals, val, aspect='auto')
-		plt.draw()
-		plt.pause(0.1)
-		startPoint = startPoint + lengthOfWindow
-		print 'LENGTH OF WINDOW: ' + str(lengthOfWindow)
-		while not(getValidInput(fig)):
-			pass
+graphNumber = 1
 
-		if len(holderData) < lengthOfWindow:
-			keepGoing = False
-			break
-		dataToPlot = []
+f = [open(i, 'r') for i in fileNames]
+#tr=fi.reader(fileNames[0])
+#finder = fi.pulse_finder('AveragedPulse_wave_280_Trigger8180_Long.txt', old_read=False,zn=20,pn=20,skip=2480,total=)
+holderArray = [[] for i in range(len(f))]
+for counter, rows in enumerate(izip(*f)):
+    for valCount, val in enumerate(rows):
+        #if fileNames[valCount] == 'wave7.txt':
+        #       holderArray[valCount].append((int(val)-8000)/10. + 8000)
+        #else:
+        holderArray[valCount].append(float(val))
+        if (counter + 1)%arrayLength == 0:
+            for countPlots, plotArray in enumerate(holderArray):
+                #finder.filter_sample(plotArray, display=True)
+                plt.plot(plotArray, linewidth=2, label = str(fileNames[countPlots]))
+                print 'INFO ABOUT WAVEFORM: ' + str(fileNames[countPlots])
+                print 'MIN: ' + str(min(plotArray)) + ' ADC COUNTS = ' + str(min(plotArray)*1000./8192.) + ' mV'
+                print 'MAX: ' + str(max(plotArray)) + ' ADC COUNTS = ' + str(max(plotArray)*1000./8192.) + ' mV'
+                print 'AMPLITUDE: ' + str(max(plotArray) - min(plotArray)) + ' ADC COUNTS = ' + str((max(plotArray) - min(plotArray))*1000./8192.) + ' mV'
+                #baseline = np.mean(plotArray[0:100])
 
+            #plt.plot(peaksVals, [holderArray[x] for x in peaksVals], 'ro')
+            #plt.plot(endVals, [holderArray[x] for x in endVals], 'go')
 
-def getFileNames():
-	fileNames = []
+            #plt.plot([0, arrayLength], [baseline, baseline], color='black', linewidth=2)
+                plt.title('GRAPH NUMBER ' + str(graphNumber))
+                plt.legend(loc='best')
+                plt.show()
+                print 'FINISHED DATA BLOCK ' + str(graphNumber)
 
-	if len(sys.argv) == 1:
-		print 'NOT ENOUGH ARGUMENTS. CACTUS TIME'
-		pu.cactusTime('HOW THE **** CAN I PLOT WITHOUT AN INPUT FILE', 32)
-	else:
-		for val in sys.argv[1:]:
-			fileNames.append(val)
-
-	return fileNames
-
-
-listOfFiles = getFileNames()
-pulseObjects = []
-dataToPlot = []
-
-for val in listOfFiles:
-	pulseObjects.append(pu.pulseObject(val, (6, 6), val))
-
-
-plotData(pulseObjects)
-
-
-
-
-
-
-
+                graphNumber = graphNumber + 1
+                holderArray = [[] for i in range(len(f))]
