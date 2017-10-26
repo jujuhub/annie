@@ -8,7 +8,7 @@ import sys
 FILE = sys.argv[1]
 SAVEFILENAME = 'my_charges.txt'
 
-PEAK_VOLTAGE = 8. # mV ; need to play around with
+PEAK_VOLTAGE = 5. # mV ; need to play around with
 IMPEDANCE = 50. # Ohms
 dT = 2E-9 # s ; sampling interval
 
@@ -82,8 +82,8 @@ def main():
                 else: # if no peaks, add to pedestal
                     pedestal += holderArray[k]
             pedestal *= len(holderArray)/k # fix
-            print("k = " + str(k))
-            print("length of holderArray: " + str(len(holderArray)))
+#            print("k = " + str(k))
+#            print("length of holderArray: " + str(len(holderArray)))
 
             if skip_frame == True:
                 print("Skipped frame: " + str(frameCounter))
@@ -100,13 +100,13 @@ def main():
             holderArray = []
             voltage = 0.0
             j+=7 # skip header info
-            print("j = " + str(j))
+#            print("j = " + str(j))
 
     # check num of events
-    if (frameCounter == len(data)/1037):
-        print("Accounted for all events")
-    else:
-        print("Did not account for all events: " + str(len(data)/1037. - frameCounter))
+#    if (frameCounter == len(data)/1037):
+#        print("Accounted for all events")
+#    else:
+#        print("Did not account for all events: " + str(len(data)/1037. - frameCounter))
 
     np.savetxt(('{0}').format(SAVEFILENAME), charge)
     return
