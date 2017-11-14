@@ -8,7 +8,7 @@ import sys
 FILE = sys.argv[1]
 SAVEFILENAME = 'my_charges.txt'
 
-PEAK_VOLTAGE = 8. # mV ; need to play around with
+PEAK_VOLTAGE = 0.010 # V ; need to play around with
 IMPEDANCE = 50. # Ohms
 dT = 2E-9 # s ; sampling interval
 
@@ -57,7 +57,7 @@ def main():
     j = 7
     while j < len(data): # while we are not at the end of file
         # convert ADC to volts and store in temp list
-        holderArray.append((float(data[j]) - (2**14)*0.86)*1000./8192.) # 0.86 hard coded
+        holderArray.append((float(data[j]) - (2**14)*0.86)/8192.) # V; 0.86 hard coded, look in config file
         j += 1 # increment sample counter
 
 #        if j == len(data)-1: # if at end of file
@@ -71,28 +71,30 @@ def main():
             frameCounter += 1 # increment frame count
 
             # sum pedestal over first 5% of frame
-            pedestal = 0
-            DC = 0
+            pedestal = 0.
+            DC = 0.
             for k in range(len(holderArray)/20):
                 # set relative DC level
-                DC = float(DC*k) + holderArray[k]/float(k + 1)
+                DC = (float(DC*k) + holderArray[k])/float(k + 1)
                 # check for early pulses
                 if abs(float(holderArray[k+1]) - DC) > PEAK_VOLTAGE: 
                     skip_frame == True # skip entire frame
                 else: # if no peaks, add to pedestal
                     pedestal += holderArray[k]
             pedestal *= len(holderArray)/k # fix
-            print("k = " + str(k))
-            print("length of holderArray: " + str(len(holderArray)))
+#            print("k = " + str(k))
+#            print("length of holderArray: " + str(len(holderArray)))
 
             if skip_frame == True:
                 print("Skipped frame: " + str(frameCounter))
             else:
                 charge.append(-(voltage - pedestal)*dT/IMPEDANCE)
 
-            # plot event
-#            plt.ylim((-50, 30)) # mV
-#            plt.title('Event ' + str(frameCounter))
+#            charge.append(-(voltage - pedestal)*dT/IMPEDANCE)
+
+           # plot event
+#            plt.ylim((-30E-3, 5E-3)) # V
+#            plt.title('Event ' + str(frameCounter) + ', V = ' + str(voltage))
 #            plt.plot(holderArray)
 #            plt.show()
 
@@ -100,15 +102,17 @@ def main():
             holderArray = []
             voltage = 0.0
             j+=7 # skip header info
-            print("j = " + str(j))
+#            print("j = " + str(j))
 
     # check num of events
-    if (frameCounter == len(data)/1037):
-        print("Accounted for all events")
-    else:
-        print("Did not account for all events: " + str(len(data)/1037. - frameCounter))
+#    if (frameCounter == len(data)/1037):
+#        print("Accounted for all events")
+#    else:
+#        print("Did not account for all events: " + str(len(data)/1037. - frameCounter))
 
+    print("Saving file as 'my_charges.txt'")
     np.savetxt(('{0}').format(SAVEFILENAME), charge)
+    print("Events: " + str(frameCounter))
     return
 
 if __name__ == '__main__':
