@@ -1,6 +1,12 @@
-for file in list_of_file_ext:
+#!/bin/bash
+
+# some command that will read in the input from file of file_ext
+
+for ext in list_of_file_ext:
     do this stuff:
     // maybe write new script to run each time i.e. "echo"
+    ls */$ext > some_list
+    
     root -l
     .L make_spect_graph.C
 
