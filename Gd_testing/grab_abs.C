@@ -56,3 +56,24 @@ Double_t grab_abs(const char* filename, double wavelength)
 
   return abs;
 }
+
+TGraph* abs_v_t()
+{
+  // Parses every ".txt" file in current directory, making plot of abs over time
+  TSystemDirectory dir(gSystem->pwd(), gSystem->pwd());
+
+  TGraph* ag = new TGraph(dir.GetListOfFiles()->GetEntries());
+
+  for (size_t i = 0; i < dir.GetListOfFiles()->GetEntries(); ++i)
+  {
+    std::string filename = (dynamic_cast<TSystemFile*>(dir.GetListOfFiles()->At(i)))->GetName();
+    if (filename.length() > 4 && filename.substr(filename.length() - 9) == "liner.txt")
+    {
+      ag->SetPoint(i, i, grab_abs(filename.c_str(), 300.00));
+    }
+  }
+
+  ag->SetTitle("Absorption over time at 300.00nm");
+
+  return ag;
+}
