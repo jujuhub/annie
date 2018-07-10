@@ -70,9 +70,11 @@ TGraph* abs_v_t()
     if (filename.length() > 4 && filename.substr(filename.length() - 9) == "liner.txt")
     {
       ag->SetPoint(i, i, grab_abs(filename.c_str(), 300.00));
+      ag->SetPoint(i, i, grab_abs(filename.c_str(), 300.00));
     }
   }
 
+  ag->SetTitle("Absorption over time at 300.00nm");
   ag->SetTitle("Absorption over time at 300.00nm");
 
   return ag;

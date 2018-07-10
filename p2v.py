@@ -14,7 +14,7 @@ DELTA=8
 EXTRA=20
 
 def ratio():
-	F = open("peak2valley.txt", "a+")
+#	F = open("peak2valley.txt", "a+")
 
 	print("attempting to open " + (DATAPATH + '/{0}').format(CHARGEDATAFILE))
 	with open((DATAPATH + '/{0}').format(CHARGEDATAFILE)) as f:
@@ -50,7 +50,7 @@ def ratio():
 
 	print(spe_peak/min(ydata[ped_i:spe_i]))
 
-	F.write(str(spe_peak/min(ydata[ped_i:spe_i]))+'\n')
+#	F.write(str(spe_peak/min(ydata[ped_i:spe_i]))+'\n')
 
 	return
 
