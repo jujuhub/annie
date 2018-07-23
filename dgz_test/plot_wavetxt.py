@@ -7,45 +7,39 @@ import sys
 
 FILE = sys.argv[1]
 SAVEFILENAME = 'my_charges.txt'
+#HEADER = 8 # 7 for DT5730, 8 for DT5742
 
 PEAK_VOLTAGE = 0.010 # V ; need to play around with
 IMPEDANCE = 50. # Ohms
-dT = 2E-9 # s ; sampling interval
+dT = 2E-10 # s ; sampling interval ; 2E-9 for DT5730
 
 # check if file name given 
 if len(sys.argv) != 2:
   print("USAGE: python plot_wavetxt.py [wave0.txt]")
   sys.exit(1)
 
-#fileNames = []
-#for val in sys.argv[1:]:
-#  fileNames.append(val) # make a list of all file name args
-
-#for val in fileNames:
-#  try:
-#    open(val)       # will be permission error
-#  except IOError:
-#    print("FILE " + str(val) + " NOT FOUND")
-#    sys.exit(1)
-
-#graphNumber = 1
-
-#f = [open(i, 'r') for i in fileNames]
-
-#holderArray = [[] for i in range(len(f))]
-#for counter, rows in enumerate(izip(*f)):
-#  for valCount, val in enumerate(rows):
-#    holderArray[valCount].append(float(val))
-#  if (counter + 1)%recordLength == 0
-
 
 def main():
   # open data file
-  print("Reading file...")
+  print("Note: ADC to V conversion is hard-coded...\nReading file...")
   with open(FILE) as f:
-    data = [line.split(' ')[-1] for line in f] # reads last column of values into list
+    data = f.readlines()
+#    data = [line.split(' ')[-1] for line in f] # reads last column of values into list
 
-  recordLength = int(data[0]) # num samples in one frame
+  header = 0
+  recordLength = 0 
+
+  for line in data[:10]:
+    # get num of samples per frame
+    if (line[:6] == 'Record'):
+      recordLength = int(line.split(' ')[-1])
+    # get num of header lines
+    try:
+      dummy = float(line)
+    except ValueError:
+      header += 1
+
+  print("Record Length: " + str(recordLength) + "\nNumber of header lines: " + str(header))
 
   print("Integrating pulses...")
   holderArray = []
@@ -53,28 +47,24 @@ def main():
   voltage = 0.0
   frameCounter = 0
 
-  j = 7
+  j = header
   while j < len(data): # while we are not at the end of file
     # convert ADC to volts and store in temp list
     # holderArray.append((float(data[j]) - (2**14)*0.86)/8192.) # V; 0.86 hard coded, look in config file
 
     # find avg pedestal value and subtract before adding to holderArray
-    frameStart = frameCounter*(recordLength+7) + 7
-    if ( j == frameStart ): # so this is only done once
+    frameStart = frameCounter*(recordLength + header) + header
+    if ( j == frameStart ): # so this is only done once per frame
       ini_ped = 0.
 #      print(j)
-      for val in data[frameStart:frameStart+recordLength/10]: # use first 10%
+      for val in data[frameStart:frameStart + recordLength/10]: # use first 10%
         ini_ped += float(val)
 #      print(ini_ped)
 
-    holderArray.append((float(data[j]) - ini_ped/len(data[frameStart:frameStart+recordLength/10]))/8192.)
+    holderArray.append((float(data[j]) - ini_ped/len(data[frameStart:frameStart + recordLength/10]))/8192.) # 8192 hard-coded conversion from ADC to V; depends on digitizer res
     j += 1 # increment sample counter
 
-#    if j == len(data)-1: # if at end of file
-#      holderArray.append((float(data[len(data)-1]) - (2**14)*0.86)*1000./8192.)
-#      j += 1 # figure out why this indexing didn't work
-
-    if (j)%(recordLength + 7) == 0: # if at end of frame
+    if (j)%(recordLength + header) == 0: # if at end of frame
 #      voltage = sum(holderArray) # sum up area of entire frame
       voltage = sum(holderArray[:recordLength/2]) # sum up half the frame
 
@@ -115,8 +105,7 @@ def main():
       holderArray = []
       voltage = 0.0
 
-
-      j+=7 # skip header info
+      j += header # skip header info
 #      print("j = " + str(j))
 
   # check num of events
