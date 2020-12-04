@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import glob
 import sys
 
+NEVT = 10
+NCH = 6
 DATAFILE = sys.argv[-1]
 #print(DATAFILE)
 
@@ -36,14 +38,28 @@ data = np.loadtxt(DATAFILE, delimiter=' ', dtype='string', comments='#', usecols
 
 y = []
 evt = 0
-for ch in range(30):
+for ch in range(NCH):
   # for each channel
-  for s in range(len(data)):
+  for s in range(len(data)): 
     y.append(int(data[s][ch+1]))
-    if ((len(y)%256) == 0):
+
+    if ((len(y)%256) == 0): # if one event complete
+      evt += 1
+      print("DEBUG: evt: " + str(evt) + " len(y)%256: " + str(len(y)%256))
       plt.plot(y)
-      y = []
+      y = [] # reset
+
+    if (evt == NEVT):
+      print(str(NEVT) + " evts reached\n")
+      break
+
   plt.title("Chn " + str(ch))
+  plt.xlabel("sample no.")
+  plt.ylabel("ADC count")
   plt.show()
+  # reset for next chn
   y = []
+  evt = 0
+
+#print("Num events: " + str(evt))
 #"""
