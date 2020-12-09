@@ -8,8 +8,9 @@ import sys
 DATAFILE = sys.argv[1]
 #print(DATAFILE)
 FRAMESIZE = 256
+NSEC = 1
 
-MAX_NEVT = 500
+MAX_NEVT = 500 # depends on data file capacity
 NEVT = 10
 if (len(sys.argv) > 2):
   if (int(sys.argv[2]) < 1 or int(sys.argv[2]) > MAX_NEVT):
@@ -25,7 +26,7 @@ if (len(sys.argv) > 3):
     print("error! invalid number of chns! you entered: " + sys.argv[3])
   else:
     NCH = int(sys.argv[3])
-print("Num of channels to process: " + str(NCH))
+    print("Num of channels to process: " + str(NCH))
 
 GROUP_EVTS = False
 PLOT_NEVTS = 10
@@ -40,8 +41,7 @@ if (len(sys.argv) > 4):
 
 ##### NEW DATA FORMAT #####
 #"""
-#data = np.loadtxt(DATAFILE, delimiter=' ', dtype='string', comments='#', usecols=None)
-
+# this assumes data file with 1+30 cols
 data = pd.read_csv(DATAFILE, sep=' ', header=None, 
                    names=["sample", 
                           "Chn1","Chn2","Chn3","Chn4","Chn5",
@@ -49,16 +49,24 @@ data = pd.read_csv(DATAFILE, sep=' ', header=None,
                           "Chn11","Chn12","Chn13","Chn14","Chn15",
                           "Chn16","Chn17","Chn18","Chn19","Chn20",
                           "Chn21","Chn22","Chn23","Chn24","Chn25",
-                          "Chn26","Chn27","Chn28","Chn29","Chn30",
-                          "meta","nan"])
+                          "Chn26","Chn27","Chn28","Chn29","Chn30"])
+#                          "meta","nan"])
+#"""
+#data = pd.read_csv(DATAFILE, sep=' ', header=None)
+
+if ((NEVT == MAX_NEVT) and (int(len(data)/FRAMESIZE) < NEVT)):
+  NEVT = int(len(data)/FRAMESIZE)
+  print("  num of evts in this file is less than what you input. readjusting..")
 
 #ax = plt.gca()
 
-# NEVT events for a specific channel NCH
+# plot NEVT events for a specific channel NCH
 if (GROUP_EVTS):
   for evt in range(NEVT):
     ax = plt.gca()
+    # get an event block
     e = data.iloc[evt*FRAMESIZE:(evt+1)*FRAMESIZE, [0,NCH]]
+    e["sample"] = range(FRAMESIZE) # relabel the samples for plotting
     e.plot(x="sample", ax=ax, legend=False)
     
     if (((evt+1)%PLOT_NEVTS == 0) or (evt == NEVT-1)):
@@ -67,15 +75,16 @@ if (GROUP_EVTS):
       plt.xlabel("sample no.")
       plt.ylabel("ADC count")
       plt.show(block=False)
-      plt.pause(1)
+      plt.pause(NSEC)
       plt.close()
 
-# NEVT events for NCH channels
+# plot NEVT events for NCH channels
 else:
-  for ch in range(1, NCH+1): # for each channel
+  for ch in range(1, NCH+1): # start at 1 bc 0th col is sample num
     ax = plt.gca()
     for evt in range(NEVT):
       e = data.iloc[evt*FRAMESIZE:(evt+1)*FRAMESIZE, [0,ch]]
+      e["sample"] = range(FRAMESIZE) # relabel the samples for plotting
       e.plot(x="sample", ax=ax, legend=False)
 #      print("debug")
     print("showing " + str(NEVT) + " evts for chn " + str(ch))
@@ -85,7 +94,7 @@ else:
     plt.ylabel("ADC count")
 #    plt.legend('', frameon=False)
     plt.show(block=False)
-    plt.pause(1)
+    plt.pause(NSEC)
     plt.close()
 
 #print("Num events: " + str(evt))
