@@ -153,6 +153,7 @@ def checkWidth(data, pedestal):
     return checkMark
     
 
+####################################################################
 # Main execution:::::::::
 if __name__ == "__main__":
   # Set the filename from an input argument
@@ -164,34 +165,36 @@ if __name__ == "__main__":
   # Load ped & data
   ped = pd.read_csv(pedfile, sep=' ', header=None)
   ped = ped.iloc[:, 0:30] # get rid of last col NaN; cols are labeled 0-29
+
   df = pd.read_csv(filename, sep=' ', header=None)
+  ncols = len(df.columns)-1
+  print("total num of columns: " + str(ncols))
+  df = df.iloc[:, 0:ncols] # get rid of last col (NaN); cols labeled 0-ncols
 
   # Get the number of acdc boards that were read out
-  num_boards = (len(df.columns)-3)/30 # minus 3 for ea board; HARDCODED
+  num_boards = int((ncols-1)/31) # num cols per event is 31 (30+1) with 0th col being sample number; HARDCODED
   print("Num of boards: " + str(num_boards))
 
-  # Create helper variables like a arbitrary x axis
-  # and counter for found pulses and processed channels
-  x = range(N_SAMPLE)
-  counter = 0
-  chk_counter = 0
+  # Get the num of recorded evts
+  number_of_events = int(len(df.index)/N_SAMPLE)
+  print("Total num of evts: " + str(number_of_events))
 
   # Loop ober all the read out acdc boards
-  for bi in range(int(num_boards)): # for each board
-    # Grab data of one acdc board and get the num of recorded evts
-    number_of_events = int(len(df.index)/N_SAMPLE)
-    print("Total num of evts: " + str(number_of_events))
-
+  for nb in range(num_boards): # for each board
     for ev in range(number_of_events): # for each event
-      # define a temporary df for the event block & get meta data
-      tdf = df.iloc[ev*N_SAMPLE:(ev+1)*N_SAMPLE, 1:31]
-      evt_meta = df.iloc[ev*N_SAMPLE:(ev+1)*N_SAMPLE, 31] # HARDCODED metadata column
+      # define a temporary df for the event block
+      tdf = df.iloc[ev*N_SAMPLE:(ev+1)*N_SAMPLE, (nb*(N_CHANNEL+1)+1):((nb+1)*(N_CHANNEL+1)+1)] # includes metadata col
+      tdf.columns = range(N_CHANNEL+1) # relabel cols 0-30
+
+      # get metadata for event
+      evt_meta = tdf.iloc[:, 30] # HARDCODED metadata col
       # extract clockcycle bit
       bit = int(evt_meta.iloc[26], 16) # CHECK DATA & README
 
       # adjust pedestal
-      tdf.index = range(N_SAMPLE) # relabel indices to match ped
-      tdf.columns = range(30) # relabel columns to match ped
+      tdf.index = range(N_SAMPLE) # relabel indices to match ped df
+      tdf = tdf.iloc[:, 0:N_CHANNEL] # get rid of metadata column
+#      tdf.columns = range(N_CHANNEL) # relabel columns to match ped
       tdf = tdf - ped
 
       # reorder events based on clockcycle bit
@@ -209,48 +212,35 @@ if __name__ == "__main__":
 
       if (ev == 0): # define new df for first event
         ndf = tdf
-        hdf = tdf.max().to_frame().T # hist of max pulse per chn per ev
+#        hdf = tdf.max().to_frame().T # hist of max pulse per chn per ev
+#        rms_df = np.sqrt((tdf**2).sum()/len(tdf)).to_frame().T
+        rms_df = tdf.var().to_frame().T
+        print("len of tdf: " + str(len(tdf)))
         print("DEBUG: len of first restructured evt: " + str(len(ndf)))
       else: # append calibrated and reordered events for the rest
         ndf = ndf.append(tdf, ignore_index=True)
-        hdf = hdf.append(tdf.max().to_frame().T, ignore_index=True)
+#        hdf = hdf.append(tdf.max().to_frame().T, ignore_index=True)
+#        rms_df = rms_df.append(np.sqrt((tdf**2).sum()/len(tdf)).to_frame().T, ignore_index=True)
+        rms_df = rms_df.append(tdf.var().to_frame().T, ignore_index=True)
         print("DEBUG: len of appending ndf: " + str(len(ndf)))
 
     # after all events processed, save ndf, hdf
-    ndfname = savefolder + 'rs' + fname
+    ndfname = savefolder + 'rs_bd' + str(nb) + fname
     print("restructured data found in: " + ndfname)
     ndf.to_csv(ndfname, sep=' ', header=False, index=True)
 
-    hdfname = savefolder + 'pulse' + fname
-    print("max pulse height per chn per evt found in: " + hdfname)
-    hdf.to_csv(hdfname, sep=' ', header=False, index=True)
+#    hdfname = savefolder + 'pulse' + fname
+#    print("max pulse height per chn per evt found in: " + hdfname)
+#    hdf.to_csv(hdfname, sep=' ', header=False, index=True)
 
-    # Loop over all channels
-"""
-        for ch in range(N_CHANNEL): # for each channel
-            chk_counter = 0
-            for ev in range(number_of_events): # for each event
-                # Grab only the respective metadata 
-                evt_meta = meta.iloc[ev*N_SAMPLE:(ev+1)*N_SAMPLE]
-                # and extract the clockcycle bit
-                bit = int(evt_meta.iloc[26],16) # CHECK DATA & README
+#    rms_dfname = savefolder + 'rms' + fname
+#    print("rms data found in: " + rms_dfname)
+#    rms_df.to_csv(rms_dfname, sep=' ', header=False, index=True)
 
-                # Grab only the respective data
-                y = df.iloc[ev*N_SAMPLE:(ev+1)*N_SAMPLE,ch+1] # start at 2nd column for data
-                # and restructure it with the clockcycle bit
-                rsy = restructure(y,bit)
-                y = np.array(rsy) - np.array(ped.iloc[:,ch])
-#                print("DEBUG: type(y) = " + str(type(y)))
-
-                # Catch events that are not complete
-                if (len(y) != N_SAMPLE or len(evt_meta) != N_SAMPLE):
-                    print("len error")
-                    break
-"""
-                # Get the pedestal value from the metadata
-#                pedestal = getPedestal(ch, evt_meta) # ???
-                # Check the waveform for a pulse by checking on the 
-                # correct sign as well as pulse height
+    # Get the pedestal value from the metadata
+#    pedestal = getPedestal(ch, evt_meta) # ???
+    # Check the waveform for a pulse by checking on the 
+    # correct sign as well as pulse height
 ####################################################################
 # From this point on you have x and y available as arrays to work with 
 ## x is a set arrays from 0 to 255 representing the samples
@@ -261,26 +251,7 @@ if __name__ == "__main__":
 # Additional information available for one event:
 ## pedestal which reads the set pedestal value from the metadata
 ## evt_meta which is the entire array of metadata available
-### The following evaluation is just a quick example/test evaluation to count
+# The following evaluation is just a quick example/test evaluation to count
 ### pulses per channel and represent them.
 ####################################################################
-                # Every event
-"""
-                ax = plt.gca()
-                plt.figure(ax=ax)
-                plt.title("Chn " + str(ch))
-                plt.xlabel("sample no.")
-                plt.ylabel("adc count")
-                plt.plot(y)
-#                printname = savefolder + "Plot_ch_" + str(ch) + ".png"
-#                plt.savefig(printname)
-
-                if ((ev+1)%20 == 0):
-                  plt.show(block=False)
-                  plt.pause(1)
-                  plt.close()
-"""
-            # Every channel
-#            plt.close(ch)
-        # Every board
 ####################################################################
