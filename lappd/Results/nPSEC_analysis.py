@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+OFFSET = 0 # offset for wrap-around
 N_SAMPLE = 256 # Number of samples per waveform
 N_CHANNEL = 30 # Number of channels per acdc board
 N_BOARDS = 8 # Maximum number of acdc boards
@@ -157,18 +158,26 @@ def checkWidth(data, pedestal):
 # Main execution:::::::::
 if __name__ == "__main__":
   # Set the filename from an input argument
+  print("syntax: python nPSEC_analysis.py [datafile] [savefolder] [pedfile1] [pedfile2] ...")
   filename = sys.argv[1] # .txt data file
   fname = os.path.basename(filename)
-  pedfile = sys.argv[2] # .txt pedestal file for calibration
-  savefolder = sys.argv[3] # directory
+  savefolder = sys.argv[2] # save directory
 
-  # Load ped & data
-  ped = pd.read_csv(pedfile, sep=' ', header=None)
+  # Load pedestal data
+  ped_ctr = 0
+  ped = pd.DataFrame([])
+  for p in range(3, len(sys.argv)):
+    pedfile = sys.argv[p] # .txt pedestal file for calibration
+    tmp = pd.read_csv(pedfile, sep=' ', header=None)
+    ped = ped.append(tmp, ignore_index=True)
+    ped_ctr += 1
+
   ped = ped.iloc[:, 0:30] # get rid of last col NaN; cols are labeled 0-29
+  print("Num of pedestal files loaded: " + str(ped_ctr))
 
   df = pd.read_csv(filename, sep=' ', header=None)
   ncols = len(df.columns)-1
-  print("total num of columns: " + str(ncols))
+#  print("DEBUG: total num of columns: " + str(ncols))
   df = df.iloc[:, 0:ncols] # get rid of last col (NaN); cols labeled 0-ncols
 
   # Get the number of acdc boards that were read out
@@ -181,6 +190,10 @@ if __name__ == "__main__":
 
   # Loop ober all the read out acdc boards
   for nb in range(num_boards): # for each board
+    # get correct ped data
+    ped_df = ped.iloc[nb*256:(nb+1)*256]
+    ped_df.index = range(256)
+
     for ev in range(number_of_events): # for each event
       # define a temporary df for the event block
       tdf = df.iloc[ev*N_SAMPLE:(ev+1)*N_SAMPLE, (nb*(N_CHANNEL+1)+1):((nb+1)*(N_CHANNEL+1)+1)] # includes metadata col
@@ -195,7 +208,7 @@ if __name__ == "__main__":
       tdf.index = range(N_SAMPLE) # relabel indices to match ped df
       tdf = tdf.iloc[:, 0:N_CHANNEL] # get rid of metadata column
 #      tdf.columns = range(N_CHANNEL) # relabel columns to match ped
-      tdf = tdf - ped
+      tdf = tdf - ped_df
 
       # reorder events based on clockcycle bit
       sampleT0 = bit*32
@@ -210,12 +223,23 @@ if __name__ == "__main__":
       tdf = tdf.reindex(reorder)
       tdf.index = range(N_SAMPLE) # relabel the indices 0-256
 
+      # account for wrap-around
+      if (OFFSET != 0):
+        reorder = []
+        for i in range(OFFSET, N_SAMPLE):
+          reorder.append(i)
+        for i in range(OFFSET):
+          reorder.append(i)
+
+        tdf = tdf.reindex(reorder)
+        tdf.index = range(N_SAMPLE)
+
       if (ev == 0): # define new df for first event
         ndf = tdf
 #        hdf = tdf.max().to_frame().T # hist of max pulse per chn per ev
 #        rms_df = np.sqrt((tdf**2).sum()/len(tdf)).to_frame().T
         rms_df = tdf.var().to_frame().T
-        print("len of tdf: " + str(len(tdf)))
+#        print("DEBUG: len of tdf: " + str(len(tdf)))
         print("DEBUG: len of first restructured evt: " + str(len(ndf)))
       else: # append calibrated and reordered events for the rest
         ndf = ndf.append(tdf, ignore_index=True)
@@ -225,7 +249,7 @@ if __name__ == "__main__":
         print("DEBUG: len of appending ndf: " + str(len(ndf)))
 
     # after all events processed, save ndf, hdf
-    ndfname = savefolder + 'rs_bd' + str(nb) + fname
+    ndfname = savefolder + 'rs_bd' + str(nb) + '_' + fname
     print("restructured data found in: " + ndfname)
     ndf.to_csv(ndfname, sep=' ', header=False, index=True)
 

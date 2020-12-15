@@ -8,7 +8,7 @@ import sys
 DATAFILE = sys.argv[1]
 #print(DATAFILE)
 FRAMESIZE = 256
-NSEC = 1
+NSEC = 0.5
 
 MAX_NEVT = 500 # depends on data file capacity
 NEVT = 10

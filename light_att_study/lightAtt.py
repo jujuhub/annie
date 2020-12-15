@@ -24,7 +24,7 @@ if (len(sys.argv) < 5):
 # global variables
 DATAPATH = '/Users/juhe/annie/light_att_study/data/'
 QE_EXT = 'r7081_qe'
-GD_EXT = '1pct*_Gd'
+GD_EXT = '1pct_normal_Gd'
 FILE_EXT = sys.argv[1]
 LAMBDA = round(float(sys.argv[2]))
 LEN1 = 10. # cm; cuvette length
