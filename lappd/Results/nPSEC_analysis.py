@@ -6,6 +6,10 @@
            samples per event
 
   modified by: J. He
+
+  usage: python nPSEC_analysis.py [datafile] [savefolder] [pedfile1]
+         [pedfile2]
+
 """
 
 import os, sys
@@ -13,7 +17,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-OFFSET = 0 # offset for wrap-around
+OFFSET = 100 # offset for wrap-around
 N_SAMPLE = 256 # Number of samples per waveform
 N_CHANNEL = 30 # Number of channels per acdc board
 N_BOARDS = 8 # Maximum number of acdc boards
@@ -257,9 +261,9 @@ if __name__ == "__main__":
 #    print("max pulse height per chn per evt found in: " + hdfname)
 #    hdf.to_csv(hdfname, sep=' ', header=False, index=True)
 
-#    rms_dfname = savefolder + 'rms' + fname
-#    print("rms data found in: " + rms_dfname)
-#    rms_df.to_csv(rms_dfname, sep=' ', header=False, index=True)
+    rms_dfname = savefolder + 'rms_bd' + str(nb) + '_' + fname
+    print("rms data found in: " + rms_dfname)
+    rms_df.to_csv(rms_dfname, sep=' ', header=False, index=True)
 
     # Get the pedestal value from the metadata
 #    pedestal = getPedestal(ch, evt_meta) # ???
