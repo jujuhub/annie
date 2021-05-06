@@ -10,7 +10,6 @@
 #include <vector>
 #include <sstream>
 #include <string>
-#include <vector>
 
 TGraph* plot_spectrum(const char* filename)
 {
