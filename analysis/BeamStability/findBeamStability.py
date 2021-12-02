@@ -14,6 +14,8 @@ FILENAME=sys.argv[1]
 if (FILENAME[-4:] != '.txt'):
   print(" @@@@@ Wrong file format !! Only .txt files plz !! @@@@@")
   exit(-1)
+RUNNUM=FILENAME[1:5]
+SAVEFIGNAME="R" + RUNNUM + "_pot_instab.png"
 
 
 #constants
@@ -176,6 +178,7 @@ if __name__=='__main__':
 
   plot_ts = []
   tmp_list = []
+  pair_list = []
   if candidate_ts:    #at least one timestamp found
     tmp_list.append(candidate_ts[0])
   if (len(candidate_ts) == 1):    #if only one timestamp found
@@ -183,21 +186,19 @@ if __name__=='__main__':
     plot_ts.append(left_ts)
     right_ts = tmp_list[-1] + TSTMP_BUF
     plot_ts.append(right_ts)
+    pair_list.append([left_ts, right_ts])
   j = 1
   while (j < len(candidate_ts)):
     if ((candidate_ts[j] - candidate_ts[j-1]) > TIME_DIFF):
-      if (len(tmp_list) > 1):
-        #add first and last element only
-        left_ts = tmp_list[0] - TSTMP_BUF
-        plot_ts.append(left_ts)
-        right_ts = tmp_list[-1] + TSTMP_BUF
-        plot_ts.append(right_ts)
-      elif (len(tmp_list) == 1):
-        print(" @@@ single boi timestamp found! : " + str(tmp_list[0]))
-        left_ts = tmp_list[0] - TSTMP_BUF
-        plot_ts.append(left_ts)
-        right_ts = tmp_list[-1] + TSTMP_BUF
-        plot_ts.append(right_ts)
+      if (len(tmp_list) == 1):
+        print(" @@@ singly boi timestamp found! : " + str(tmp_list[0]))
+      #add first and last element only
+      left_ts = tmp_list[0] - TSTMP_BUF
+      plot_ts.append(left_ts)
+      right_ts = tmp_list[-1] + TSTMP_BUF
+      plot_ts.append(right_ts)
+      pair_list.append([left_ts, right_ts])
+
       #reset list
       tmp_list = []
       tmp_list.append(candidate_ts[j])
@@ -206,12 +207,14 @@ if __name__=='__main__':
         plot_ts.append(left_ts)
         right_ts = tmp_list[0] + TSTMP_BUF
         plot_ts.append(right_ts)
-    elif (j == len(candidate_ts)-1):   #cluster towards end of run
-      tmp_list.append(candidate_ts[j]) #add the last timestamp
+        pair_list.append([left_ts, right_ts])
+    elif (j == len(candidate_ts)-1):    #last cluster
+      tmp_list.append(candidate_ts[j])  #add the last timestamp
       left_ts = tmp_list[0] - TSTMP_BUF
       plot_ts.append(left_ts)
       right_ts = tmp_list[-1] + TSTMP_BUF
       plot_ts.append(right_ts)
+      pair_list.append([left_ts, right_ts])
     else:
       tmp_list.append(candidate_ts[j])
     j+=1
@@ -236,14 +239,15 @@ if __name__=='__main__':
   plt.ylabel("POT")
   plt.plot(ts, bp)
   for t in plot_ts:
-    plt.axvline(x = t, color='m', linestyle='-', linewidth=1.2)
-  
+    plt.axvline(x = t, color='m', linestyle='--', linewidth=1.2)
+  for pr in pair_list:
+    plt.axvspan(pr[0], pr[1], color='r', alpha=0.3, lw=0)
 
   plt.subplot(3,1,2)
   plt.ylabel("POT (smoothed)")
   plt.plot(ts_smth, pot_smth)
   for t in candidate_ts:
-    plt.axvline(x = t, color='g', linestyle='-.')
+    plt.axvline(x = t, color='g', linestyle='-.', linewidth=0.9)
 
   plt.subplot(3,1,3)
   plt.xlabel("event time")
@@ -251,6 +255,7 @@ if __name__=='__main__':
   plt.plot(ts_grad, pot_grad, 'g')
   #plt.plot(ts_grad, pos_pot_grad, 'g')
   for t in candidate_ts:
-    plt.axvline(x = t, color='r', linestyle='-.')
+    plt.axvline(x = t, color='r', linestyle='-.', linewidth=0.9)
 
+  plt.savefig(SAVEFIGNAME, dpi=300)
   plt.show()
