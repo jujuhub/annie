@@ -38,7 +38,7 @@ Beta = lambda x,amp,A,s,y: amp*scs.beta.pdf(x,s,y)/A
 
 
 #gauss1= lambda x,C1,m1,s1: C1*(1./(s1*np.sqrt(2*np.pi)))*np.exp(-(1./2.)*((x-m1)**2)/s1**2)
-gauss1 = lambda x,C1,m1,s1: C1*np.exp(-(1./2.)*((x.astype(float)-m1)**2)/s1**2)
+gauss1 = lambda x,C1,m1,s1: C1*np.exp(-(1./2.)*((x.astype(float)-m1)**2)/s1**2)   #juju
 
 landau = lambda x,C,m,l1,l2: C*((1./np.sqrt(2*np.pi))*np.exp(-(1./2)*(((x-m)/l1) + np.exp(-(x-m)/l2))))
 
@@ -161,7 +161,7 @@ def SPE3Peaks(x,C1,mu,s,f_C,f_mu,f_s,S_C1,S_C2):#,S_mu,S_s):
 def gaussPlusExpo(x,C1,m1,s1,D,tau,t):
     return D*(np.exp(-(x-t)/tau)) + C1*np.exp(-(1./2.)*((x-m1)**2)/s1**2)
 
-expo = lambda x,D,tau,t: D*(np.exp(-(x.astype(float)-t)/tau))
+expo = lambda x,D,tau,t: D*(np.exp(-(x.astype(float)-t)/tau))   #juju
 
 #gauss2= lambda x,C1,m1,s1,C2,m2,s2: C1*(1./(s1*np.sqrt(2*np.pi)))*np.exp(-(1./2.)*((x-m1)**2)/s1**2) + \
 #                                    C2*(1./(s2*np.sqrt(2*np.pi)))*np.exp(-(1./2.)*((x-m2)**2)/s2**2)

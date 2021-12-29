@@ -22,8 +22,8 @@ SAVEFIGNAME="R" + RUNNUM + "_pot_instab.png"
 WNDW_SZ = 100   #TODO:play around w/ window sizes
 GRAD_RNG = 100   #lower number results in larger gradients
 NSTD = 4.5      #TODO:best criteria?
-TIME_DIFF = 2.5e12   #TODO:find out units
-TSTMP_BUF = 0.5e12
+TIME_DIFF = 2.5e12    #ns
+TSTMP_BUF = 0.5e12    #ns
 
 
 #defines
@@ -234,28 +234,28 @@ if __name__=='__main__':
   print(" > num of candidate timestamps: " + str(len(candidate_ts)))
   print(" > num of plotted timestamps: " + str(len(plot_ts)))
 
-  plt.subplot(3,1,1)
-  plt.title("Run " + FILENAME[1:5])
-  plt.ylabel("POT")
-  plt.plot(ts, bp)
+  fig, (ax1, ax2, ax3, ax4) = plt.subplots(4,1, figsize=(11,8))
+#  fig.set_tight_layout(True)
+  ax1.set(title="Run " + RUNNUM, ylabel="POT")
+  ax1.plot(ts, bp)
+
+  ax2.set(ylabel="POT (smoothed)")
+  ax2.plot(ts_smth, pot_smth)
+  for t in candidate_ts:
+    ax2.axvline(x = t, color='g', linestyle='-.', linewidth=0.9)
+
+  ax3.set(ylabel="d(POT)/d(time)")
+  ax3.plot(ts_grad, pot_grad, 'g')
+  #ax3.plot(ts_grad, pos_pot_grad, 'g')
+  for t in candidate_ts:
+    ax3.axvline(x = t, color='r', linestyle='-.', linewidth=0.9)
+
+  ax4.set(xlabel="event time [ns]", ylabel="POT")
+  ax4.plot(ts, bp)
   for t in plot_ts:
-    plt.axvline(x = t, color='m', linestyle='--', linewidth=1.2)
+    ax4.axvline(x = t, color='m', linestyle='--', linewidth=1.2)
   for pr in pair_list:
-    plt.axvspan(pr[0], pr[1], color='r', alpha=0.3, lw=0)
-
-  plt.subplot(3,1,2)
-  plt.ylabel("POT (smoothed)")
-  plt.plot(ts_smth, pot_smth)
-  for t in candidate_ts:
-    plt.axvline(x = t, color='g', linestyle='-.', linewidth=0.9)
-
-  plt.subplot(3,1,3)
-  plt.xlabel("event time")
-  plt.ylabel("d(POT)/d(time)")
-  plt.plot(ts_grad, pot_grad, 'g')
-  #plt.plot(ts_grad, pos_pot_grad, 'g')
-  for t in candidate_ts:
-    plt.axvline(x = t, color='r', linestyle='-.', linewidth=0.9)
+    ax4.axvspan(pr[0], pr[1], color='r', alpha=0.3, lw=0)
 
   plt.savefig(SAVEFIGNAME, dpi=300)
   plt.show()

@@ -1,4 +1,4 @@
-# Modified from the original to process different data formats
+### Modified from the original to process different data formats
 
 import scipy.optimize as scp
 import numpy as np
@@ -6,7 +6,8 @@ from . import Functions as fu
 import copy
 import matplotlib.pyplot as plt
 
-NBINS=2000
+#defines
+NBINS = 2000
 
 class GainFinder(object):
   def __init__(self):
@@ -37,10 +38,13 @@ class GainFinder(object):
   def setTauMax(self, tau):
     print(" > TAU MAX WILL BE: " + str(tau))
     self.upper_bounds[8] = tau #FIXME: This is specific to how gauss1 is defined. generalize
+    print(" [debug] self.upper (after tau): ", self.upper_bounds)
 
   def setBounds(self, lower_bounds, upper_bounds):
     self.lower_bounds = lower_bounds
     self.upper_bounds = upper_bounds
+    print(" [debug] self.lower: ", self.lower_bounds)
+    print(" [debug] self.upper: ", self.upper_bounds)
 
   def FitPedestal(self, chargeData, init_params, fit_range, fit_tail=False, exp_fit_range=[]):
     '''
@@ -49,7 +53,7 @@ class GainFinder(object):
       given if helping down-select to the pedestal-dominant region.
 
       Inputs:
-      * charge_data [array]
+      * chargeData [array]
           Array containing charge data of a PMT
 
       * init_params [array]
@@ -64,7 +68,7 @@ class GainFinder(object):
     fig, ax = plt.subplots()
     evts, bin_edges, patches = ax.hist(chargeData, bins=NBINS)
 
-    bin_centers = np.array(bin_edges[:-1]+(bin_edges[1]-bin_edges[0])/2.0) # midpoint of bin
+    bin_centers = np.array(bin_edges[:-1]+(bin_edges[1]-bin_edges[0])/2.0) # midpoint of bins
 
     evts_unc = []
     for i in range(len(evts)):  #TODO:how does ROOT determine uncertainty?
@@ -90,18 +94,19 @@ class GainFinder(object):
 #    bin_centers = np.array(bin_centers)
 #    evts = np.array(evts)
 #    evts_unc = np.array(evts_unc)
+    #looks like fit_* are defined like the above
     fit_bin_centers = np.array(bin_centers)
     fit_evts = np.array(evts)
     fit_evts_unc = np.array(evts_unc)
 
     if (len(fit_range) > 0):
-      print(" [debug] fit_range: " + str(fit_range))
       fit_bin_inds = np.where((bin_centers > fit_range[0]) & (bin_centers < fit_range[1]))[0]
-      print(" [debug] fit_bin_inds: " + str(fit_bin_inds))
       fit_bin_centers = fit_bin_centers[fit_bin_inds]
-      print(" [debug] fit_bin_centers: ", fit_bin_centers)
       fit_evts = fit_evts[fit_bin_inds]
-      fit_vts_unc = fit_evts_unc[fit_bin_inds]
+      fit_vts_unc = fit_evts_unc[fit_bin_inds]  #typo? not used anywhere..
+      print(" [debug] fit_range: " + str(fit_range))
+      print(" [debug] fit_bin_inds: " + str(fit_bin_inds))
+      #print(" [debug] fit_bin_centers: ", fit_bin_centers)
     print("TRYING INITIAL PARAMS: " + str(init_params))
     try:
       popt, pcov = scp.curve_fit(fu.gauss1, bin_centers, evts, p0=init_params, maxfev=6000)
@@ -132,7 +137,7 @@ class GainFinder(object):
       exp_init_params = [exp_evts[0], popt[2], 10*popt[1]]
       print("EXPONENTIAL FIT: INIT PARAMS: " + str(exp_init_params))
       try:
-        eopt, ecov = scp.curve_fit(lambda x,D,tau,t: fu.gaussPlusExpo(x,popt[0],popt[1],popt[2],D,tau,t), exp_bins, exp_evts, p0=exp_init_params, sigma=exp_evts_unc, maxfev=12000)
+        eopt, ecov = scp.curve_fit(lambda x,D,tau,t: fu.gaussPlusExpo(x, popt[0], popt[1], popt[2], D, tau, t), exp_bins, exp_evts, p0=exp_init_params, sigma=exp_evts_unc, maxfev=12000)
         #eopt, ecov = scp.curve_fit(lambda x,D,tau,t: D*np.exp(-(x-t)/tau), exp_bins, exp_evts, p0=exp_init_params, maxfev=12000)
       except RuntimeError:
         print("NO SUCCESSFUL FIT TO PEDESTAL AFTER ITERATIONS...")
@@ -142,7 +147,7 @@ class GainFinder(object):
       popt = np.concatenate((popt,eopt))
       #
       self.ped_fit_y = fu.gaussPlusExpo(self.ped_fit_x, popt[0], popt[1],
-                        popt[2], eopt[0], eopt[1], eopt[2]) 
+                                       popt[2], eopt[0], eopt[1], eopt[2])
     return popt, pcov, bin_centers, evts, evts_unc
 
   def FitPEPeaks(self, chargeData, exclude_ped=True, subtract_ped=False, fit_range=[]):

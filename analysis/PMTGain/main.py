@@ -113,7 +113,7 @@ if __name__=='__main__':
   #Load database?
   with open(DBFILE) as dbfile:
     db = json.load(dbfile)
-    fitdata = db[fitType]
+    fitdata = db[fitType]   #not used anywhere..
     dbfile.close()
 
   #Initialize gain fitting class
@@ -125,13 +125,13 @@ if __name__=='__main__':
 
   #Loop through channels in file and fit gains to each
   for pmt in range(332,338):
-    print(" > Attemping to fit charge distribution for PMT #%d"%pmt)
+    print("Attempting to fit charge distribution for PMT #%d"%pmt)
     if (hasBkg):
       charge = np.array((exp_bdf[exp_bdf['hitDetID'] == pmt])['hitQ'])
       if (charge.size <= 0): #if no charges found for this pmt
         print("\n  > NO CHARGES FOUND FOR PMT #%d\n"%pmt)
         continue
-      print(charge)
+#      print(charge)
 #      gf.gainFit(charge)
 
       #Fit photoelectron peaks
@@ -155,10 +155,6 @@ if __name__=='__main__':
           continue
 
         pl.PlotPedestal(ped_xdata, ped_ydata, fn.gauss1, ped_xdata, ped_opt, "GaussPlusExpo")
-#        plt.plot(ped_xdata, ped_ydata)
-#        pedfit = fn.gauss1(ped_xdata, *ped_opt)
-#        plt.plot(ped_xdata, pedfit)
-#        plt.show()
 
         above_ped = 0
         past_ped = np.where(ped_xdata > (ped_opt[1] + 3.*ped_opt[2]))[0]
@@ -170,7 +166,7 @@ if __name__=='__main__':
         else:
           above_ped = np.sum(ped_ydata[past_ped] - fn.gauss1(ped_xdata[past_ped], ped_opt[0], ped_opt[1], ped_opt[2]))
         plt.show()
-        print("4SIGMA PAST PED, EXP. SUBTRACTED: " + str(above_ped))
+        print(" > 4SIGMA PAST PED, EXP. SUBTRACTED: " + str(above_ped))
         if (above_ped < 300):
           print("Low statistics beyond pedestal! May just be fitting on fluctuations.")
           skip_fit = str(input("Skip this fit?"))
@@ -180,6 +176,7 @@ if __name__=='__main__':
             FitComplete = True
             GoodFit = False
             continue
+
         ped_good = str(input("Happy with pedestal fit? [y/N]: "))
         if (ped_good in ["y", "Y", "yes", "Yes", "YES", "yEs"]):
           PedFitComplete = True
@@ -224,7 +221,7 @@ if __name__=='__main__':
             FitComplete = True
             continue
           else:
-            UseDefault = str(input("Use default fit parameters? [y/N/"))
+            UseDefault = str(input("Use default fit parameters? [y/N]"))
         approve_fit = str(input("Fit converged! Happy with this fit? [y/N]: "))
         if (approve_fit in ["y", "Y", "yes", "Yes", "YES", "yEs"]):
           FitComplete = True
@@ -300,7 +297,10 @@ if __name__=='__main__':
           db[fitType]["f_mu_unc"].append(errs[8])
           db[fitType]["tau_unc"].append(errs[9])
   with open(DBFILE, "w") as dbfile:
+    print("\nSAVING TO DATABASE...")
     json.dump(db, dbfile, sort_keys=False, indent=4)
+
+  print("DONE!")
 
 
 
