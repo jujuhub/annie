@@ -74,7 +74,7 @@ def PlotPedestal(xdata,ydata,function,xfit,params,fittype):
     plt.xlabel("Charge (nC)")
     plt.ylabel("Entries")
     plt.ylim(ymin=0.9)
-    plt.xlim(-0.03, 0.70) #juju
+    plt.xlim(-0.001, 0.021) #juju
     plt.yscale("log")
     plt.title("Fit of pedestal and failedamplification hits to data")
     plt.show()
@@ -148,8 +148,8 @@ def PlotHistPEDAndPEs_V2(xdata,ydata,pedparams,peparams,fittype):
     plt.plot(xdata,ytot,marker='None',label='Total Fit')
     plt.xlabel("Charge (nC)")
     plt.ylabel("Entries")
-    plt.ylim(ymin=0.9, ymax=1.5E4)  #juju
-    plt.xlim(-0.03, 0.70) #juju
+    plt.ylim(ymin=0.9, ymax=1.E3)  #juju
+    plt.xlim(-0.001, 0.021) #juju
     plt.yscale("log")
     plt.title("Comparison of ped, PE distribution fits to data")
     leg = plt.legend(loc=1,fontsize=24)

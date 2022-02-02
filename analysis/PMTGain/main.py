@@ -2,6 +2,7 @@
   Purpose: Determine PMT gain based on AmBe data
 
   Written by : J. He
+    with code copied from Teal's version
 '''
 
 #imports
@@ -17,66 +18,48 @@ import lib.GainFinder_noROOT as gf
 import lib.Functions as fn
 import lib.Plots as pl
 
-#defines
-DBFILE = 'DB/myGains_AmBe_bkg.json'
-#DBFILE = 'DB/SimpleGainCurves_Default.json'
-#DBFILE = 'DB/TransparencyGains.json'
-DATADIR = 'data/'
-NBINS = 500
-MAXMU = 0.056
+#check if charge data stored in txt file
+if (len(sys.argv) != 2):
+  print(" > MISSING OR EXCESS ARGUMENT(S)!")
+  print(" > SYNTAX: python3 main.py [0/1]")
+  sys.exit(1)
 
-pmtIDs = list(range(332,464))
+HASCSV = False
+try:
+  CSV = int(sys.argv[-1])
+except ValueError:
+  print("Not a valid argument...")
+if (CSV == 1):
+  HASCSV = True
+
+#defines
+DBFILE = 'DB/AmBe_gains_2.json'
+CSVFILE = 'charges.txt'
+DATADIR = 'data/'
+NBINS = 210
+MINQ = -0.001
+MAXQ = 0.02
+MAXMU = 0.006
+
+#some lists
+pmtIDs = list(range(395,413))  #full range:[332,465]
 src_runs = [22,23,27,29,30,32,33,34,38,39,40,41,42,48,49,50,51,53,54,
                55,57,58,59,60,62,63]
 bkg_runs = [64,65,66,67,68,69,70,71,72,73,74,75,76,77]
-mybranches = ['eventTimeTank', 'hitQ', 'hitPE', 'hitDetID']
+mybranches = ['eventTimeTank', 'hitQ', 'hitT', 'hitPE', 'hitDetID']
 
-def fitGain(pmtQ):
-  def norm(x, mean, sd, n): #n = normalization constant of gaussian
-    return((n/(np.sqrt(2*np.pi)*sd))*np.exp(-(x - mean)**2/(2*sd**2)))
-
-  #Plot charge distribution
-  fig = plt.figure()
-  ax = fig.subplot(111)
-
-  bin_freq, bin_edges, patches = ax.hist(pmtQ, bins=NBINS, facecolor='orange')
-  plt.yscale('log')
-
-#  bin_edges = 1E12*bin_edges
-  bin_centers = np.array(bin_edges[:-1]+(bin_edges[1]-bin_edges[0])/2.0) #midpoint of bin
-
-  #Bin uncertainties found using square root of N approx
-  uncert_data = []
-  for i in range(bin_freq.size):
-    uncert_data.append(np.sqrt(bin_freq[i]))
-    if uncert_data[i] == 0:
-      uncert_data[i] =  1
-
-  ###############################
-  #Fitting the 0 p.e. pedestal
-
-  #Initial guess to the parameters of pedestal gaussian
-  ped_params = [0, 1, 1000]
-
-  #Take only first half of data where our pedestal is located
-  popt_sub, pcov_sub = curve_fit(norm, bin_centers[:len(bin_centers)/2],
-                bin_freq[:len(bin_centers)/2],
-                p0 = ped_params,
-                sigma = uncert_data[:len(bin_centers)/2])
-
-  #take mean of 1st peak (pedestal) and subtract
-  print(popt_sub[0])
-  newPmtQ = pmtQ - popt_sub[0]
 
 
 #main
 if __name__=='__main__':
   flist = glob.glob(DATADIR + "NTuple_*.root")
 
-  bkgProcessor = rp.ROOTProcessor("phaseIITankClusterTree")
-  print("  ..for bkg data")
-  srcProcessor = rp.ROOTProcessor("phaseIITankClusterTree")
-  print("  ..for src data")
+  #load the data
+  if (not HASCSV):
+    bkgProcessor = rp.ROOTProcessor("phaseIITankClusterTree")
+    print("  ..for bkg data")
+    srcProcessor = rp.ROOTProcessor("phaseIITankClusterTree")
+    print("  ..for src data")
   hasBkg = False
   hasSrc = False
   for f in flist:
@@ -84,25 +67,35 @@ if __name__=='__main__':
     nrun = f[-7:-5]   #extract run number
     #print(" > nrun = " + nrun)
     if (int(nrun) in bkg_runs):
-      bkgProcessor.addROOTFile(f, branches_to_get=mybranches)
+      if (not HASCSV):
+        bkgProcessor.addROOTFile(f, branches_to_get=mybranches)
       hasBkg = True
     elif (int(nrun) in src_runs):
-      srcProcessor.addROOTFile(f, branches_to_get=mybranches)
+      if (not HASCSV):
+        srcProcessor.addROOTFile(f, branches_to_get=mybranches)
       hasSrc = True
     else:
       print("Skipping NTuple_%s.root"%(nrun))
 
-  if (hasBkg):
-    bdata = bkgProcessor.getProcessedData()
-    bdf = pd.DataFrame(bdata)
-    print(" [debug] bdf len: " + str(len(bdf)))
-    exp_bdf = bdf.set_index(['eventTimeTank']).apply(pd.Series.explode).reset_index()
+  if (HASCSV):  # currently assumes data in file is all bkg or all src
+    print(" > Loading data from: " + DATADIR + CSVFILE)
+    raw = pd.read_csv(DATADIR+CSVFILE)
+    exp_bdf = raw.set_index(['eventTimeTank']).apply(pd.Series.explode).reset_index()
 
-  if (hasSrc):
-    sdata = srcProcessor.getProcessedData()
-    sdf = pd.DataFrame(sdata)
-    print(" [debug] sdf len: " + str(len(sdf)))
-    exp_sdf = sdf.set_index(['eventTimeTank']).apply(pd.Series.explode).reset_index()
+  if (not HASCSV):
+    if (hasBkg):
+      bdata = bkgProcessor.getProcessedData()
+      bdf = pd.DataFrame(bdata)
+      print(" [debug] bdf len: " + str(len(bdf)))
+      exp_bdf = bdf.set_index(['eventTimeTank']).apply(pd.Series.explode).reset_index()
+      exp_bdf.to_csv(DATADIR+CSVFILE, index=False)
+      print(" > data saved to: " + DATADIR + CSVFILE)
+
+    if (hasSrc):
+      sdata = srcProcessor.getProcessedData()
+      sdf = pd.DataFrame(sdata)
+      print(" [debug] sdf len: " + str(len(sdf)))
+      exp_sdf = sdf.set_index(['eventTimeTank']).apply(pd.Series.explode).reset_index()
 
   #Load dictionary of initial fit parameters
   with open("./DB/InitialParams.json", "r") as ip:
@@ -124,10 +117,12 @@ if __name__=='__main__':
     GainFinder.setBounds(init_params["EXP2SPELB"],init_params["EXP2SPEUB"])
 
   #Loop through channels in file and fit gains to each
-  for pmt in range(332,338):
+  for pmt in pmtIDs:
+    if (pmt == 413):  #pmt 413 broke the code
+      continue
     print("Attempting to fit charge distribution for PMT #%d"%pmt)
     if (hasBkg):
-      charge = np.array((exp_bdf[exp_bdf['hitDetID'] == pmt])['hitQ'])
+      charge = np.array((exp_bdf[(exp_bdf['hitDetID'] == pmt) & (exp_bdf['hitT'] > 15000.) & (exp_bdf['hitQ'] >= MINQ) & (exp_bdf['hitQ'] <= MAXQ)])['hitQ'])
       if (charge.size <= 0): #if no charges found for this pmt
         print("\n  > NO CHARGES FOUND FOR PMT #%d\n"%pmt)
         continue
@@ -190,9 +185,13 @@ if __name__=='__main__':
       UseDefault = "y"
 
       print(" [debug] ped_opt: " + str(ped_opt))
+
       while not FitComplete:
         print(" > SIGMA LIMIT IS: " + str(ped_opt[2]))
-        GainFinder.setTauMax(4.*ped_opt[2])
+        if (ped_opt[2] < 0.):   #juju: defined gaussian doesn't care about sign of sigma so it may produce negative sigma
+          GainFinder.setTauMax(-4.*ped_opt[2])
+        else:
+          GainFinder.setTauMax(4.*ped_opt[2])
         init_mean = str(input("Guess at SPE mean: "))
         if (float(init_mean) >= MAXMU):
           print("TRY LESS THAN " + str(MAXMU))
@@ -235,21 +234,28 @@ if __name__=='__main__':
       if GoodFit:
         #With the pedestal and 1PE peak fit, estimate the PV ratio
         Valley_inds = np.where((xdata > ped_opt[1]) & (xdata < popt[1]))
-        Valley_min = np.argmin(ydata[Valley_inds])
-        print(" > VALLEY MIN AT BIN: " + str(xdata[Valley_min]))
-        Valley_estimate_bins = ydata[np.arange(Valley_min-1, Valley_min+4, 1)]
-        Valley_estimate = np.average(Valley_estimate_bins)
-        print(" > VALLEY MEAN ESTIMATE: " + str(Valley_estimate))
-        V_unc = np.std(Valley_estimate_bins)
-        Peak_max = np.abs(xdata-popt[1]).argmin()
-        print(" > PEAK MAX AT BIN: " + str(xdata[Peak_max]))
-        Peak_estimate_bins = ydata[np.arange(Peak_max-2, Peak_max+3, 1)]
-        Peak_estimate = np.average(Peak_estimate_bins)
-        print(" > PEAK MEAN ESTIMATE: " + str(Peak_estimate))
-        P_unc = np.std(Peak_estimate_bins)
-        print(" > P/V RATIO ESTIMATE: " + str(Peak_estimate/Valley_estimate))
-        PV_unc = (Peak_estimate/Valley_estimate)*np.sqrt((1./V_unc)**2 + (1./P_unc)**2)
-        print(" > P/V RATIO UNC: " + str(PV_unc))
+        try:
+          Valley_min = np.argmin(ydata[Valley_inds])
+        except ValueError:
+          print(" !! ERROR !! UNABLE TO FIND P/V RATIO")
+          Valley_estimate = -999.
+          Peak_estimate = 1.
+          PV_unc = -999.
+        else:
+          print(" > VALLEY MIN AT BIN: " + str(xdata[Valley_min]))
+          Valley_estimate_bins = ydata[np.arange(Valley_min-1, Valley_min+4, 1)]
+          Valley_estimate = np.average(Valley_estimate_bins)
+          print(" > VALLEY MEAN ESTIMATE: " + str(Valley_estimate))
+          V_unc = np.std(Valley_estimate_bins)
+          Peak_max = np.abs(xdata-popt[1]).argmin()
+          print(" > PEAK MAX AT BIN: " + str(xdata[Peak_max]))
+          Peak_estimate_bins = ydata[np.arange(Peak_max-2, Peak_max+3, 1)]
+          Peak_estimate = np.average(Peak_estimate_bins)
+          print(" > PEAK MEAN ESTIMATE: " + str(Peak_estimate))
+          P_unc = np.std(Peak_estimate_bins)
+          print(" > P/V RATIO ESTIMATE: " + str(Peak_estimate/Valley_estimate))
+          PV_unc = (Peak_estimate/Valley_estimate)*np.sqrt((1./V_unc)**2 + (1./P_unc)**2)
+          print(" > P/V RATIO UNC: " + str(PV_unc))
 
         #Since we've made it out, save to the DB
         db[fitType]["Channel"].append(pmt)

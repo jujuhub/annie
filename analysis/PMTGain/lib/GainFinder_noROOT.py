@@ -7,7 +7,7 @@ import copy
 import matplotlib.pyplot as plt
 
 #defines
-NBINS = 2000
+NBINS = 210
 
 class GainFinder(object):
   def __init__(self):
@@ -103,13 +103,14 @@ class GainFinder(object):
       fit_bin_inds = np.where((bin_centers > fit_range[0]) & (bin_centers < fit_range[1]))[0]
       fit_bin_centers = fit_bin_centers[fit_bin_inds]
       fit_evts = fit_evts[fit_bin_inds]
-      fit_vts_unc = fit_evts_unc[fit_bin_inds]  #typo? not used anywhere..
-      print(" [debug] fit_range: " + str(fit_range))
-      print(" [debug] fit_bin_inds: " + str(fit_bin_inds))
+      fit_evts_unc = fit_evts_unc[fit_bin_inds]  #typo? not used anywhere..
+      #print(" [debug] fit_range: " + str(fit_range))
+      #print(" [debug] fit_bin_inds: " + str(fit_bin_inds))
       #print(" [debug] fit_bin_centers: ", fit_bin_centers)
     print("TRYING INITIAL PARAMS: " + str(init_params))
     try:
-      popt, pcov = scp.curve_fit(fu.gauss1, bin_centers, evts, p0=init_params, maxfev=6000)
+      #popt, pcov = scp.curve_fit(fu.gauss1, bin_centers, evts, p0=init_params, maxfev=6000)
+      popt, pcov = scp.curve_fit(fu.gauss1, fit_bin_centers, fit_evts, p0=init_params, maxfev=6000)   #fixed so that actual pedestal range is fitted
     except RuntimeError:
       print("NO SUCCESSFUL FIT TO PEDESTAL AFTER ITERATIONS...")
       popt = None
