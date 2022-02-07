@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 
 #defines
 NBINS = 210
+MINQ = -0.001
+MAXQ = 0.02
 
 class GainFinder(object):
   def __init__(self):
@@ -46,15 +48,15 @@ class GainFinder(object):
     print(" [debug] self.lower: ", self.lower_bounds)
     print(" [debug] self.upper: ", self.upper_bounds)
 
-  def FitPedestal(self, chargeData, init_params, fit_range, fit_tail=False, exp_fit_range=[]):
+  def FitPedestal(self, evts, bin_centers, evts_unc, init_params, fit_range, fit_tail=False, exp_fit_range=[]):
     '''
       Uses a Gaussian from the Functions library to attempt to fit
       the pedestal peak of the distribution.  A fit range can be
       given if helping down-select to the pedestal-dominant region.
 
       Inputs:
-      * chargeData [array]
-          Array containing charge data of a PMT
+      * evts, bin_centers, evts_unc [array]
+          Arrays containing charge distribution histogram data
 
       * init_params [array]
           Initial parameters to try fitting a single gaussian with.
@@ -65,18 +67,6 @@ class GainFinder(object):
           to the ped-only range.
     '''
     print("FITTING TO PEDESTAL NOW")
-    fig, ax = plt.subplots()
-    evts, bin_edges, patches = ax.hist(chargeData, bins=NBINS)
-
-    bin_centers = np.array(bin_edges[:-1]+(bin_edges[1]-bin_edges[0])/2.0) # midpoint of bins
-
-    evts_unc = []
-    for i in range(len(evts)):  #TODO:how does ROOT determine uncertainty?
-      if (evts[i] <= 0):
-        evts_unc.append(1)
-      else:
-        evts_unc.append(np.sqrt(evts[i]))
-    evts_unc = np.array(evts_unc)
 
     #Get histogram information into ntuples
 #    bin_centers, evts,evts_unc =(), (), () #pandas wants ntuples
@@ -151,22 +141,9 @@ class GainFinder(object):
                                        popt[2], eopt[0], eopt[1], eopt[2])
     return popt, pcov, bin_centers, evts, evts_unc
 
-  def FitPEPeaks(self, chargeData, exclude_ped=True, subtract_ped=False, fit_range=[]):
+  def FitPEPeaks(self, evts, bin_centers, evts_unc, exclude_ped=True, subtract_ped=False, fit_range=[]):
 #    thehist =  self.ROOTFile.Get(HistName)
     #Get histogram information into ntuples
-    fig, ax = plt.subplots()
-    evts, bin_edges, patches = ax.hist(chargeData, bins=NBINS)
-
-    bin_centers = np.array(bin_edges[:-1]+(bin_edges[1]-bin_edges[0])/2.0) # midpoint of bin
-
-    evts_unc = []
-    for i in range(len(evts)):  #TODO:how does ROOT determine uncertainty?
-      if (evts[i] <= 0):
-        evts_unc.append(1)
-      else:
-        evts_unc.append(np.sqrt(evts[i]))
-    evts_unc = np.array(evts_unc)
-
 #    bin_centers, evts,evts_unc =(), (), () #pandas wants ntuples
 #    fit_bin_centers, fit_evts,fit_evts_unc =(), (), () #pandas wants ntuples
 #    for i in xrange(int(thehist.GetNbinsX()+1)):
@@ -193,9 +170,11 @@ class GainFinder(object):
       fit_evts = fit_evts[fit_bin_inds]
       fit_evts_unc = fit_evts_unc[fit_bin_inds]
     if subtract_ped:
+      print(" [debug] subtracting ped...")
       fit_evts = fit_evts - self.ped_fit_y
       fit_evts_unc = np.sqrt(evts_unc**2 + self.ped_fit_y_unc**2)
     if exclude_ped:
+      print(" [debug] excluding ped...")
       fit_bin_inds = np.where(bin_centers >= (self.ped_mean + 1*self.ped_sigma))
       fit_evts = fit_evts[fit_bin_inds]
       fit_evts_unc = fit_evts_unc[fit_bin_inds]
@@ -210,6 +189,7 @@ class GainFinder(object):
         popt, pcov = scp.curve_fit(self.fitfunc, fit_bin_centers, fit_evts, p0=self.initial_params, sigma=fit_evts_unc, maxfev=6000)
       else:
         popt, pcov = scp.curve_fit(self.fitfunc, fit_bin_centers, fit_evts, p0=self.initial_params, bounds=(self.lower_bounds, self.upper_bounds), sigma=fit_evts_unc, maxfev=6000)
+#        popt, pcov = scp.curve_fit(self.fitfunc, fit_bin_centers, fit_evts, p0=self.initial_params, sigma=fit_evts_unc, maxfev=6000)
     except RuntimeError:
       print("NO SUCCESSFUL FIT AFTER ITERATIONS...")
       popt = None

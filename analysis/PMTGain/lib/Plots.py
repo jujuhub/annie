@@ -104,11 +104,12 @@ def PlotHistPEDAndPEs(xdata,ydata,pedparams,peparams,fittype):
     leg.draw_frame(True)
     plt.show()
 
-def PlotHistPEDAndPEs_V2(xdata,ydata,pedparams,peparams,fittype):
-    plt.plot(xdata,ydata,linestyle='None',marker='o',markersize=6)
-    yped = fu.gauss1(xdata,pedparams[0],pedparams[1],pedparams[2])
-    plt.plot(xdata,yped,marker='None',label='Pedestal')
-    ytot = copy.deepcopy(yped)
+def PlotHistPEDAndPEs_V2(xdata,ydata,pedparams,peparams,fittype, ped_present):
+    plt.plot(xdata,ydata,linestyle='None',marker='o',markersize=5)
+    if (ped_present == 1.):
+      yped = fu.gauss1(xdata,pedparams[0],pedparams[1],pedparams[2])
+      plt.plot(xdata,yped,marker='None',label='Pedestal')
+      ytot = copy.deepcopy(yped)
     #if len(pedparams>3):
     #    exp_range = np.where(xdata>pedparams[1])[0]
     #    yexp = fu.expo(xdata[exp_range],pedparams[3],pedparams[4],pedparams[5])
@@ -117,13 +118,16 @@ def PlotHistPEDAndPEs_V2(xdata,ydata,pedparams,peparams,fittype):
     if fittype in ["SPE","SPE2Peaks","SPE3Peaks","EXP2SPE","EXP3SPE"]:
         y1spe = fu.SPEGaussians_NoExp(xdata,peparams[0],peparams[1],peparams[2],peparams[3],peparams[4],
                 peparams[5])
-        ytot = ytot+y1spe
-        plt.plot(xdata,y1spe,marker='None',label='1PE')
+        if (ped_present == 1.):
+          ytot += y1spe
+        else:
+          ytot = y1spe
+        plt.plot(xdata,y1spe,marker='None',linestyle='--',lw='3',label='1PE')
     if fittype in ["SPE2Peaks","EXP2SPE","EXP3SPE"]:
         y2spe = fu.gauss1(xdata, peparams[6]*peparams[0]*(1+peparams[3]), 
                                  peparams[1]*(1+peparams[4]),peparams[2]*np.sqrt(1+(peparams[5]**2))) + \
                 fu.gauss1(xdata, peparams[6]*2*peparams[0],2*peparams[1],peparams[2]*np.sqrt(2))
-        ytot = ytot+y2spe
+        ytot += y2spe
         plt.plot(xdata,y2spe,marker='None',label='2PE')
     if fittype in ["EXP3SPE"]:
         y3spe = fu.gauss1(xdata, peparams[10]*3*peparams[6]*peparams[0], 
@@ -133,7 +137,7 @@ def PlotHistPEDAndPEs_V2(xdata,ydata,pedparams,peparams,fittype):
     if fittype in ["EXP2SPE","EXP3SPE"]:
         yexp = fu.expo(xdata, peparams[7],peparams[8],peparams[9])
         plt.plot(xdata,yexp,marker='None',label='Exponential')
-        ytot = ytot + yexp
+        ytot += yexp
     if fittype=="SPE3Peaks":
         y2spe = fu.gauss1(xdata, peparams[6]*peparams[0]*(1+peparams[3]), 
                                  peparams[1]*(1+peparams[4]),peparams[2]*np.sqrt(1+(peparams[5]**2))) + \
@@ -148,7 +152,7 @@ def PlotHistPEDAndPEs_V2(xdata,ydata,pedparams,peparams,fittype):
     plt.plot(xdata,ytot,marker='None',label='Total Fit')
     plt.xlabel("Charge (nC)")
     plt.ylabel("Entries")
-    plt.ylim(ymin=0.9, ymax=1.E3)  #juju
+    plt.ylim(ymin=0.9, ymax=5.E3)  #juju
     plt.xlim(-0.001, 0.021) #juju
     plt.yscale("log")
     plt.title("Comparison of ped, PE distribution fits to data")

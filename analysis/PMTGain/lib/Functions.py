@@ -38,7 +38,7 @@ Beta = lambda x,amp,A,s,y: amp*scs.beta.pdf(x,s,y)/A
 
 
 #gauss1= lambda x,C1,m1,s1: C1*(1./(s1*np.sqrt(2*np.pi)))*np.exp(-(1./2.)*((x-m1)**2)/s1**2)
-gauss1 = lambda x,C1,m1,s1: C1*np.exp(-(1./2.)*((x.astype(float)-m1)**2)/s1**2)   #juju
+gauss1 = lambda x,C1,m1,s1: C1*np.exp(-(1./2.)*((x.astype(float)-m1)**2)/s1**2)   #juju:added in float type
 
 landau = lambda x,C,m,l1,l2: C*((1./np.sqrt(2*np.pi))*np.exp(-(1./2)*(((x-m)/l1) + np.exp(-(x-m)/l2))))
 
@@ -87,8 +87,8 @@ def PE2Convolve(x,C1,mu,s,f_C,f_mu,f_s,S_C):
 def EXP2SPE(x,C1,mu,s,f_C,f_mu,f_s,S_C,D,tau,f_t):#,S_mu,S_s):
     exponen = expo(x,D,tau,f_t)
     single_SPE = SPEGaussians_NoExp(x,C1,mu,s,f_C,f_mu,f_s)
-    two_PE = gauss1(x,S_C*C1*(1+f_C),mu*(1+f_mu),s*np.sqrt(1+(f_s)**2)) +  \
-            gauss1(x,S_C*2*C1,2*mu,s*np.sqrt(2)) # + \
+    two_PE = gauss1(x, S_C*C1*(1+f_C), mu*(1+f_mu), s*np.sqrt(1+(f_s)**2)) +  \
+            gauss1(x, S_C*2*C1, 2*mu, s*np.sqrt(2)) # + \
             #gauss1(x,S_C*C1*2*f_C, 2*mu*f_mu,s*f_s*np.sqrt(2))
     return exponen + single_SPE + two_PE
 
