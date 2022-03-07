@@ -33,22 +33,26 @@ if (CSV == 1):
   HASCSV = True
 
 #defines
-DBFILE = 'DB/AmBe_gains_2.json'
-CSVFILE = 'charges.txt'
-DATADIR = 'data/'
+DBFILE = "DB/AmBe_gains_src_Gauss1_10hits_3pC_fitrng.json"
+CSVFILE = "src_charges_10hits_3pC.txt"
+DATADIR = "data/src/"
 NBINS = 210
+NHITS = 10  #also n of PMTs firing
+TCUT = 15000.   #ns
+QPERPMT = 0.003   #nC
 MINQ = -0.001
 MAXQ = 0.02
-MAXMU = 0.006
+MAXMU = 0.008
 VIS = 1.
 NOTVIS = 0.
 
 #some lists
-pmtIDs = list(range(453,465))  #full range:[332,464]
+pmtIDs = list(range(332,364))  #full range:[332,464]
 src_runs = [22,23,27,29,30,32,33,34,38,39,40,41,42,48,49,50,51,53,54,
                55,57,58,59,60,62,63]
 bkg_runs = [64,65,66,67,68,69,70,71,72,73,74,75,76,77]
-mybranches = ['eventTimeTank', 'hitQ', 'hitT', 'hitPE', 'hitDetID']
+mybranches = ['eventTimeTank', 'hitQ', 'hitT', 'hitPE', 'hitDetID', 'clusterPE', 'clusterHits', 'clusterCharge']   #bkg
+#mybranches = ['eventTimeTank', 'hitQ', 'hitT', 'hitPE', 'hitDetID']   #src
 
 
 
@@ -62,8 +66,8 @@ if __name__=='__main__':
     print("  ..for bkg data")
     srcProcessor = rp.ROOTProcessor("phaseIITankClusterTree")
     print("  ..for src data")
-  hasBkg = False
-  hasSrc = False
+  hasBkg = False   #hardcoded rn
+  hasSrc = True 
   for f in flist:
     #print(" > current file: " + f)
     nrun = f[-7:-5]   #extract run number
@@ -81,29 +85,46 @@ if __name__=='__main__':
 
   if (HASCSV):  # currently assumes data in file is all bkg or all src
     print(" > Loading data from: " + DATADIR + CSVFILE)
-    raw = pd.read_csv(DATADIR+CSVFILE)
-    exp_bdf = raw.set_index(['eventTimeTank']).apply(pd.Series.explode).reset_index()
+    exp_df = pd.read_csv(DATADIR+CSVFILE)
 
   if (not HASCSV):
     if (hasBkg):
       bdata = bkgProcessor.getProcessedData()
       bdf = pd.DataFrame(bdata)
+      #apply cut on nHits
+      print(" [debug] len(bdf): " + str(len(bdf)))
+      bdf = bdf[bdf['clusterHits'] < NHITS]
+      print(" [debug] len(bdf): " + str(len(bdf)))
+      bdf = bdf[(bdf['clusterCharge'] / bdf['clusterHits']) < QPERPMT]
+      print(" [debug] len(bdf): " + str(len(bdf)))
+      #bdf = bdf[bdf['hitDetID'].apply(lambda x: len(x) < NHITS)]
+      bdf = bdf[['eventTimeTank','hitT','hitQ','hitDetID']]
       print(" [debug] bdf len: " + str(len(bdf)))
-      exp_bdf = bdf.set_index(['eventTimeTank']).apply(pd.Series.explode).reset_index()
-      exp_bdf.to_csv(DATADIR+CSVFILE, index=False)
-      print(" > data saved to: " + DATADIR + CSVFILE)
+      exp_df = bdf.set_index(['eventTimeTank']).apply(pd.Series.explode).reset_index()
 
     if (hasSrc):
       sdata = srcProcessor.getProcessedData()
       sdf = pd.DataFrame(sdata)
+      #cut on nHits
+      print(" [debug] len(sdf): " + str(len(sdf)))
+      sdf = sdf[sdf['clusterHits'] < NHITS]
+      print(" [debug] len(sdf): " + str(len(sdf)))
+      sdf = sdf[(sdf['clusterCharge'] / sdf['clusterHits']) < QPERPMT]
+      print(" [debug] len(sdf): " + str(len(sdf)))
+      sdf = sdf.drop(columns=['clusterCharge', 'clusterPE', 'clusterHits', 'hitPE'])
       print(" [debug] sdf len: " + str(len(sdf)))
-      exp_sdf = sdf.set_index(['eventTimeTank']).apply(pd.Series.explode).reset_index()
+      exp_df = sdf.set_index(['eventTimeTank']).apply(pd.Series.explode).reset_index()
+
+    #save to txt file
+    print(" > saving data to txt...")
+    exp_df.to_csv(DATADIR+CSVFILE, index=False)
+    print(" > data saved to: " + DATADIR + CSVFILE)
 
   #Load dictionary of initial fit parameters
   with open("./DB/InitialParams.json", "r") as ip:
     init_params = json.load(ip)
 
-  fitType = "SPE"   #hardcoded
+  fitType = "Gauss1"   #hardcoded
   print(" > USING FIT TYPE: >> " + fitType + " <<")
 
   #Load database?
@@ -114,6 +135,10 @@ if __name__=='__main__':
 
   #Initialize gain fitting class
   GainFinder = gf.GainFinder()  #create an instance of GF class
+  if(fitType == "Gauss1"):
+    GainFinder.setFitFunction(fn.gauss1)
+    GainFinder.setInitialFitParams(init_params["GaussInitParams"])
+    GainFinder.setBounds(init_params["GaussLB"],init_params["GaussUB"])
   if (fitType == "EXP2SPE"):    #set up the fit
     GainFinder.setFitFunction(fn.EXP2SPE)
     GainFinder.setInitialFitParams(init_params["EXP2SPEInitParams"])
@@ -125,16 +150,14 @@ if __name__=='__main__':
 
   #Loop through channels in file and fit gains to each
   for pmt in pmtIDs:
-    if (pmt == 413):  #pmt 413 broke the code
-      continue
     print("Attempting to fit charge distribution for PMT #%d"%pmt)
-    if (hasBkg):
-      charge = np.array((exp_bdf[(exp_bdf['hitDetID'] == pmt) & (exp_bdf['hitT'] > 15000.) & (exp_bdf['hitQ'] >= MINQ) & (exp_bdf['hitQ'] <= MAXQ)])['hitQ'])
+    #if (hasBkg):
+    #  charge = np.array((exp_df[(exp_df['hitDetID'] == pmt) & (exp_df['hitT'] > TCUT) & (exp_df['hitQ'] >= MINQ) & (exp_df['hitQ'] <= MAXQ)])['hitQ'])
+    if (hasSrc):
+      charge = np.array((exp_df[(exp_df['hitDetID'] == pmt) & (exp_df['hitQ'] >= MINQ) & (exp_df['hitQ'] <= MAXQ)])['hitQ'])    #no t cut
       if (charge.size <= 0): #if no charges found for this pmt
         print("\n  > NO CHARGES FOUND FOR PMT #%d\n"%pmt)
         continue
-#      print(charge)
-#      gf.gainFit(charge)
 
       #Fit photoelectron peaks
       FIT_TAIL = False          #hardcoded
@@ -157,12 +180,13 @@ if __name__=='__main__':
         PedFitComplete = True
         ped_opt = [0., -999., -999.]
       else:
-        print("Invalid input. Assuming pedestal is not present...")
         VisiblePed = NOTVIS
+        print("Invalid input. Assuming pedestal is not present...")
 
-      bin_centers = np.array(bin_edges[:-1]+(bin_edges[1]-bin_edges[0])/2.) #midpoint of bins
+      #get midpoint of bins & uncertainty
+      bin_centers = np.array(bin_edges[:-1]+(bin_edges[1]-bin_edges[0])/2.)
       evts_unc = []
-      for i in range(len(evts)):  #TODO:how ROOT uncertainty?
+      for i in range(len(evts)):  #TODO:how ROOT do uncertainty?
         if (evts[i] <= 0):
           evts_unc.append(1)
         else:
@@ -251,10 +275,43 @@ if __name__=='__main__':
           print("Input not recognized.  Trying a save bet of 0.001")
           GainFinder.setInitMean(0.001)
         if (UseDefault in ["y", "Y", "yes", "Yes", "YES", "yEs"]):
-          if (VisiblePed == 0.):
-            popt, pcov, xdata, ydata, y_unc = GainFinder.FitPEPeaks(evts, bin_centers, evts_unc, exclude_ped=False, subtract_ped=False)
-          else:
-            popt, pcov, xdata, ydata, y_unc = GainFinder.FitPEPeaks(evts, bin_centers, evts_unc, exclude_ped=True, subtract_ped=True)
+          if (VisiblePed == 0.):  #if ped not visible
+          ##### SPECIAL FITS #####################################
+            if (pmt == 343):
+              print(" [debug] fitting pmt #343")
+              GainFinder.upper_bounds = [1E4, 0.007, 0.0025]
+              print(GainFinder.upper_bounds)
+              popt, pcov, xdata, ydata, y_unc = GainFinder.FitPEPeaks(evts, bin_centers, evts_unc, exclude_ped=False, subtract_ped=False, fit_range=[-0.001,0.008])
+            elif (pmt == 344):
+              print(" [debug] fitting pmt #344")
+              GainFinder.upper_bounds = init_params["GaussUB"]
+              print(GainFinder.upper_bounds)
+              popt, pcov, xdata, ydata, y_unc = GainFinder.FitPEPeaks(evts, bin_centers, evts_unc, exclude_ped=False, subtract_ped=False, fit_range=[-0.001,0.0025])
+            elif (pmt == 355):
+              print(" [debug] fitting pmt #355")
+              popt, pcov, xdata, ydata, y_unc = GainFinder.FitPEPeaks(evts, bin_centers, evts_unc, exclude_ped=False, subtract_ped=False, fit_range=[-0.001,0.003])
+            elif (pmt == 357):
+              print(" [debug] fitting pmt #357")
+              popt, pcov, xdata, ydata, y_unc = GainFinder.FitPEPeaks(evts, bin_centers, evts_unc, exclude_ped=False, subtract_ped=False, fit_range=[-0.001,0.003])
+            elif (pmt == 416):
+              print(" [debug] fitting pmt #416")
+              popt, pcov, xdata, ydata, y_unc = GainFinder.FitPEPeaks(evts, bin_centers, evts_unc, exclude_ped=False, subtract_ped=False, fit_range=[-0.001,0.0025])
+            else:
+              GainFinder.upper_bounds = init_params["GaussUB"]
+              print(GainFinder.upper_bounds)
+              popt, pcov, xdata, ydata, y_unc = GainFinder.FitPEPeaks(evts, bin_centers, evts_unc, exclude_ped=False, subtract_ped=False)
+            #popt, pcov, xdata, ydata, y_unc = GainFinder.FitPEPeaks(evts, bin_centers, evts_unc, exclude_ped=False, subtract_ped=False, fit_range=init_params["GaussFitRange"])
+          else:   #if ped is visible
+            if (pmt == 343):
+              print(" [debug] fitting pmt #343")
+              GainFinder.upper_bounds = [1E4, 0.007, 0.002]
+              print(GainFinder.upper_bounds)
+              popt, pcov, xdata, ydata, y_unc = GainFinder.FitPEPeaks(evts, bin_centers, evts_unc, exclude_ped=True, subtract_ped=False, fit_range=[0,0.008])
+            else:
+              GainFinder.upper_bounds = init_params["GaussUB"]
+              print(GainFinder.upper_bounds)
+#              popt, pcov, xdata, ydata, y_unc = GainFinder.FitPEPeaks(evts, bin_centers, evts_unc, exclude_ped=False, subtract_ped=True, fit_range=init_params["GaussFitRange"])
+              popt, pcov, xdata, ydata, y_unc = GainFinder.FitPEPeaks(evts, bin_centers, evts_unc, exclude_ped=False, subtract_ped=True)
         elif (UseDefault in ["n", "N", "no", "No", "NO", "nO"]):
           InitialParams = pin.GetInitialParameters(fitType)
           popt, pcov, xdata, ydata, y_unc = GainFinder.FitPEPeaks(charge)
@@ -265,7 +322,8 @@ if __name__=='__main__':
           GoodFit = False
           continue    #the rest of this loop is skipped; UseDefault basically hard-coded
         print("BEST FIT PARAMETERS: " + str(popt))
-        pl.PlotHistPEDAndPEs_V2(bin_centers, evts, ped_opt, popt, fitType, VisiblePed)
+        #pl.PlotHistPEDAndPEs_V2(bin_centers, evts, ped_opt, popt, fitType, VisiblePed)
+        pl.PlotHistPEDAndPEs_V2(xdata, ydata, ped_opt, popt, fitType, VisiblePed)
         if popt is None:
           retry_fit = str(input("Fit failed! Retry? [y/N]: "))
           if (retry_fit not in ["y", "Y", "yes", "Yes", "YES", "yEs"]):
@@ -360,6 +418,13 @@ if __name__=='__main__':
           db[fitType]["CExp_unc"].append(errs[7])
           db[fitType]["f_mu_unc"].append(errs[8])
           db[fitType]["tau_unc"].append(errs[9])
+        if fitType in ["Gauss1"]:
+          db[fitType]["c1Height"].append(popt[0])
+          db[fitType]["c1Mu"].append(popt[1])
+          db[fitType]["c1Sigma"].append(popt[2])
+          db[fitType]["c1Height_unc"].append(errs[0])
+          db[fitType]["c1Mu_unc"].append(errs[1])
+          db[fitType]["c1Sigma_unc"].append(errs[2])
   with open(DBFILE, "w") as dbfile:
     print("\nSAVING TO DATABASE...")
     json.dump(db, dbfile, sort_keys=False, indent=4)

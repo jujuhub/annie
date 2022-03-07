@@ -7,7 +7,7 @@ import copy
 import matplotlib.pyplot as plt
 
 #defines
-NBINS = 210
+NBINS = 670 #210
 MINQ = -0.001
 MAXQ = 0.02
 
@@ -171,11 +171,14 @@ class GainFinder(object):
       fit_evts_unc = fit_evts_unc[fit_bin_inds]
     if subtract_ped:
       print(" [debug] subtracting ped...")
-      fit_evts = fit_evts - self.ped_fit_y
+      fit_evts = fit_evts - self.ped_mean  #shifts all values to the left (or right if ped negative)
+      #print(len(fit_evts))
       fit_evts_unc = np.sqrt(evts_unc**2 + self.ped_fit_y_unc**2)
+      #print(len(fit_evts_unc))
     if exclude_ped:
       print(" [debug] excluding ped...")
-      fit_bin_inds = np.where(bin_centers >= (self.ped_mean + 1*self.ped_sigma))
+      #fit_bin_inds = np.where(bin_centers >= (self.ped_mean + 1*self.ped_sigma))
+      fit_bin_inds = np.where(fit_bin_centers >= 0.0005)   #hardcoded
       fit_evts = fit_evts[fit_bin_inds]
       fit_evts_unc = fit_evts_unc[fit_bin_inds]
       fit_bin_centers = fit_bin_centers[fit_bin_inds]
@@ -186,6 +189,7 @@ class GainFinder(object):
     print("INITIAL PARAMS FOR FIT: " + str(self.initial_params))
     try:
       if self.lower_bounds is None or self.upper_bounds is None:
+        print("Fitting with NO lower or upper bounds given...")
         popt, pcov = scp.curve_fit(self.fitfunc, fit_bin_centers, fit_evts, p0=self.initial_params, sigma=fit_evts_unc, maxfev=6000)
       else:
         popt, pcov = scp.curve_fit(self.fitfunc, fit_bin_centers, fit_evts, p0=self.initial_params, bounds=(self.lower_bounds, self.upper_bounds), sigma=fit_evts_unc, maxfev=6000)
@@ -194,7 +198,7 @@ class GainFinder(object):
       print("NO SUCCESSFUL FIT AFTER ITERATIONS...")
       popt = None
       pcov = None
-    return popt, pcov, bin_centers, evts, evts_unc
+    return popt, pcov, fit_bin_centers, fit_evts, fit_evts_unc
 
   def FitPEPeaksV2(self, HistName, exclude_ped=True, subtract_ped=False):
         thehist =  self.ROOTFile.Get(HistName)

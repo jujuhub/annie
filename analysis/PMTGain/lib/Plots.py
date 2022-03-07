@@ -115,6 +115,13 @@ def PlotHistPEDAndPEs_V2(xdata,ydata,pedparams,peparams,fittype, ped_present):
     #    yexp = fu.expo(xdata[exp_range],pedparams[3],pedparams[4],pedparams[5])
     #    ytot[exp_range] = ytot[exp_range]+yexp
     #    plt.plot(xdata[exp_range],yexp,marker='None',label='Partial amp. hits')
+    if fittype in ["Gauss1"]:
+      y1spe = fu.gauss1(xdata, peparams[0], peparams[1], peparams[2])
+      if (ped_present == 1.):
+        ytot += y1spe
+      else:
+        ytot = y1spe
+      plt.plot(xdata,y1spe,marker='None',linestyle='--',lw='3',label='1PE')
     if fittype in ["SPE","SPE2Peaks","SPE3Peaks","EXP2SPE","EXP3SPE"]:
         y1spe = fu.SPEGaussians_NoExp(xdata,peparams[0],peparams[1],peparams[2],peparams[3],peparams[4],
                 peparams[5])
@@ -150,9 +157,10 @@ def PlotHistPEDAndPEs_V2(xdata,ydata,pedparams,peparams,fittype, ped_present):
         ytot = ytot+y3spe
         plt.plot(xdata,y3spe,marker='None',label='3PE')
     plt.plot(xdata,ytot,marker='None',label='Total Fit')
+    plt.axvline(x=0, color='k', linestyle='--')
     plt.xlabel("Charge (nC)")
     plt.ylabel("Entries")
-    plt.ylim(ymin=0.9, ymax=5.E3)  #juju
+    plt.ylim(ymin=0.9, ymax=0.5E4)  #juju
     plt.xlim(-0.001, 0.021) #juju
     plt.yscale("log")
     plt.title("Comparison of ped, PE distribution fits to data")
