@@ -21,9 +21,10 @@ import lib.Plots as pl
 #check if charge data stored in txt file
 if (len(sys.argv) != 2):
   print(" > MISSING OR EXCESS ARGUMENT(S)!")
-  print(" > SYNTAX: python3 main.py [0/1]")
+  print(" > SYNTAX: python3 main.py [0/1/5]")
   sys.exit(1)
 
+HASLED = False
 HASCSV = False
 try:
   CSV = int(sys.argv[-1])
@@ -31,12 +32,15 @@ except ValueError:
   print("Not a valid argument...")
 if (CSV == 1):
   HASCSV = True
+if (CSV == 5):
+  HASLED = True
 
 #defines
-DBFILE = "DB/AmBe_gains_src_Gauss1_10hits_3pC_fitrng.json"
-CSVFILE = "src_charges_10hits_3pC.txt"
+DBFILE = "DB/AmBe_gains_src_Gauss1_SiPMNum_SiPMhitT85.json"
+CSVFILE = "src_charges_SiPMNum_SiPMhitT85.txt"
 DATADIR = "data/src/"
 NBINS = 210
+SIPMTCUT = 85.  #ns
 NHITS = 10  #also n of PMTs firing
 TCUT = 15000.   #ns
 QPERPMT = 0.003   #nC
@@ -51,8 +55,8 @@ pmtIDs = list(range(332,364))  #full range:[332,464]
 src_runs = [22,23,27,29,30,32,33,34,38,39,40,41,42,48,49,50,51,53,54,
                55,57,58,59,60,62,63]
 bkg_runs = [64,65,66,67,68,69,70,71,72,73,74,75,76,77]
-mybranches = ['eventTimeTank', 'hitQ', 'hitT', 'hitPE', 'hitDetID', 'clusterPE', 'clusterHits', 'clusterCharge']   #bkg
-#mybranches = ['eventTimeTank', 'hitQ', 'hitT', 'hitPE', 'hitDetID']   #src
+mybranches = ['eventTimeTank', 'hitQ', 'hitT', 'hitPE', 'hitDetID', 'clusterPE', 'clusterHits', 'clusterCharge', 'SiPMNum', 'SiPMhitT']
+#mybranches = ['eventTimeTank', 'hitQ', 'hitT', 'hitPE', 'hitDetID']
 
 
 
@@ -61,7 +65,7 @@ if __name__=='__main__':
   flist = glob.glob(DATADIR + "NTuple_*.root")
 
   #load the data
-  if (not HASCSV):
+  if ((not HASCSV) and (not HASLED)):
     bkgProcessor = rp.ROOTProcessor("phaseIITankClusterTree")
     print("  ..for bkg data")
     srcProcessor = rp.ROOTProcessor("phaseIITankClusterTree")
@@ -83,7 +87,7 @@ if __name__=='__main__':
     else:
       print("Skipping NTuple_%s.root"%(nrun))
 
-  if (HASCSV):  # currently assumes data in file is all bkg or all src
+  if (HASCSV):  #assumes data in file is all bkg or all src
     print(" > Loading data from: " + DATADIR + CSVFILE)
     exp_df = pd.read_csv(DATADIR+CSVFILE)
 
@@ -105,13 +109,18 @@ if __name__=='__main__':
     if (hasSrc):
       sdata = srcProcessor.getProcessedData()
       sdf = pd.DataFrame(sdata)
+      #cut on SiPM hits
+      print(" [debug] len(sdf): " + str(len(sdf)))
+      sdf = sdf[sdf['SiPMNum'].apply(lambda x: (len(x) == 2) and (1.0 in x) and (2.0 in x))]  #req 1 hit in each SiPM and only 1 per SiPM
+      print(" [debug] len(sdf): " + str(len(sdf)))
+      sdf = sdf[sdf['SiPMhitT'].apply(lambda tp: abs(tp[0]-tp[1]) < SIPMTCUT)]
       #cut on nHits
+      #print(" [debug] len(sdf): " + str(len(sdf)))
+      #sdf = sdf[sdf['clusterHits'] < NHITS]
+      #print(" [debug] len(sdf): " + str(len(sdf)))
+      #sdf = sdf[(sdf['clusterCharge'] / sdf['clusterHits']) < QPERPMT]
       print(" [debug] len(sdf): " + str(len(sdf)))
-      sdf = sdf[sdf['clusterHits'] < NHITS]
-      print(" [debug] len(sdf): " + str(len(sdf)))
-      sdf = sdf[(sdf['clusterCharge'] / sdf['clusterHits']) < QPERPMT]
-      print(" [debug] len(sdf): " + str(len(sdf)))
-      sdf = sdf.drop(columns=['clusterCharge', 'clusterPE', 'clusterHits', 'hitPE'])
+      sdf = sdf.drop(columns=['clusterCharge', 'clusterPE', 'clusterHits', 'hitPE', 'SiPMNum', 'SiPMhitT'])
       print(" [debug] sdf len: " + str(len(sdf)))
       exp_df = sdf.set_index(['eventTimeTank']).apply(pd.Series.explode).reset_index()
 
@@ -154,7 +163,7 @@ if __name__=='__main__':
     #if (hasBkg):
     #  charge = np.array((exp_df[(exp_df['hitDetID'] == pmt) & (exp_df['hitT'] > TCUT) & (exp_df['hitQ'] >= MINQ) & (exp_df['hitQ'] <= MAXQ)])['hitQ'])
     if (hasSrc):
-      charge = np.array((exp_df[(exp_df['hitDetID'] == pmt) & (exp_df['hitQ'] >= MINQ) & (exp_df['hitQ'] <= MAXQ)])['hitQ'])    #no t cut
+      charge = np.array((exp_df[(exp_df['hitDetID'] == pmt) & (exp_df['hitQ'] >= MINQ) & (exp_df['hitQ'] <= MAXQ)])['hitQ'])    #no time cut
       if (charge.size <= 0): #if no charges found for this pmt
         print("\n  > NO CHARGES FOUND FOR PMT #%d\n"%pmt)
         continue
@@ -300,7 +309,7 @@ if __name__=='__main__':
               GainFinder.upper_bounds = init_params["GaussUB"]
               print(GainFinder.upper_bounds)
               popt, pcov, xdata, ydata, y_unc = GainFinder.FitPEPeaks(evts, bin_centers, evts_unc, exclude_ped=False, subtract_ped=False)
-            #popt, pcov, xdata, ydata, y_unc = GainFinder.FitPEPeaks(evts, bin_centers, evts_unc, exclude_ped=False, subtract_ped=False, fit_range=init_params["GaussFitRange"])
+              #popt, pcov, xdata, ydata, y_unc = GainFinder.FitPEPeaks(evts, bin_centers, evts_unc, exclude_ped=False, subtract_ped=False, fit_range=init_params["GaussFitRange"])   #using fit range
           else:   #if ped is visible
             if (pmt == 343):
               print(" [debug] fitting pmt #343")
@@ -310,7 +319,9 @@ if __name__=='__main__':
             else:
               GainFinder.upper_bounds = init_params["GaussUB"]
               print(GainFinder.upper_bounds)
+              # WITH fit range
 #              popt, pcov, xdata, ydata, y_unc = GainFinder.FitPEPeaks(evts, bin_centers, evts_unc, exclude_ped=False, subtract_ped=True, fit_range=init_params["GaussFitRange"])
+              # WITHOUT fit range
               popt, pcov, xdata, ydata, y_unc = GainFinder.FitPEPeaks(evts, bin_centers, evts_unc, exclude_ped=False, subtract_ped=True)
         elif (UseDefault in ["n", "N", "no", "No", "NO", "nO"]):
           InitialParams = pin.GetInitialParameters(fitType)
