@@ -36,9 +36,10 @@ if (CSV == 5):
   HASLED = True
 
 #defines
-DBFILE = "DB/AmBe_gains_src_Gauss1_SiPMNum_SiPMhitT85.json"
+DATADIR = "data/"
+DBFILE = "DB/LEDthr_gains_Gauss1_fitrng.json"
 CSVFILE = "src_charges_SiPMNum_SiPMhitT85.txt"
-DATADIR = "data/src/"
+LEDFILE = "LED_R3134to3158_hcharge.txt"
 NBINS = 210
 SIPMTCUT = 85.  #ns
 NHITS = 10  #also n of PMTs firing
@@ -65,23 +66,25 @@ if __name__=='__main__':
   flist = glob.glob(DATADIR + "NTuple_*.root")
 
   #load the data
+  hasBkg = False   #hardcoded rn
+  hasSrc = False
+  hasLed = True
   if ((not HASCSV) and (not HASLED)):
     bkgProcessor = rp.ROOTProcessor("phaseIITankClusterTree")
     print("  ..for bkg data")
     srcProcessor = rp.ROOTProcessor("phaseIITankClusterTree")
     print("  ..for src data")
-  hasBkg = False   #hardcoded rn
-  hasSrc = True 
+  nrun = -69
   for f in flist:
     #print(" > current file: " + f)
     nrun = f[-7:-5]   #extract run number
     #print(" > nrun = " + nrun)
     if (int(nrun) in bkg_runs):
-      if (not HASCSV):
+      if ((not HASCSV) and (not HASLED)):
         bkgProcessor.addROOTFile(f, branches_to_get=mybranches)
       hasBkg = True
     elif (int(nrun) in src_runs):
-      if (not HASCSV):
+      if ((not HASCSV) and (not HASLED)):
         srcProcessor.addROOTFile(f, branches_to_get=mybranches)
       hasSrc = True
     else:
@@ -91,7 +94,12 @@ if __name__=='__main__':
     print(" > Loading data from: " + DATADIR + CSVFILE)
     exp_df = pd.read_csv(DATADIR+CSVFILE)
 
-  if (not HASCSV):
+  if (HASLED):
+    print(" > Loading data from: " + DATADIR + LEDFILE)
+    exp_df = pd.read_csv(DATADIR+LEDFILE, header=None, names=['hitDetID', 'xdata', 'ydata', 'unc'], sep=',')
+    #print(exp_df.head(10))
+
+  if ((not HASCSV) and (not HASLED)):
     if (hasBkg):
       bdata = bkgProcessor.getProcessedData()
       bdf = pd.DataFrame(bdata)
@@ -162,9 +170,17 @@ if __name__=='__main__':
     print("Attempting to fit charge distribution for PMT #%d"%pmt)
     #if (hasBkg):
     #  charge = np.array((exp_df[(exp_df['hitDetID'] == pmt) & (exp_df['hitT'] > TCUT) & (exp_df['hitQ'] >= MINQ) & (exp_df['hitQ'] <= MAXQ)])['hitQ'])
-    if (hasSrc):
-      charge = np.array((exp_df[(exp_df['hitDetID'] == pmt) & (exp_df['hitQ'] >= MINQ) & (exp_df['hitQ'] <= MAXQ)])['hitQ'])    #no time cut
-      if (charge.size <= 0): #if no charges found for this pmt
+    #if (hasSrc):
+    #  charge = np.array((exp_df[(exp_df['hitDetID'] == pmt) & (exp_df['hitQ'] >= MINQ) & (exp_df['hitQ'] <= MAXQ)])['hitQ'])    #no time cut
+    #  if (charge.size <= 0): #if no charges found for this pmt
+    #    print("\n  > NO CHARGES FOUND FOR PMT #%d\n"%pmt)
+    #    continue
+
+    if (hasLed):
+      evts = np.array(exp_df[(exp_df['hitDetID'] == pmt)]['ydata'])
+      bin_centers = np.array(exp_df[(exp_df['hitDetID'] == pmt)]['xdata'])
+      evts_unc = np.array(exp_df[(exp_df['hitDetID'] == pmt)]['unc'])
+      if (not evts.any()):
         print("\n  > NO CHARGES FOUND FOR PMT #%d\n"%pmt)
         continue
 
@@ -176,10 +192,13 @@ if __name__=='__main__':
       exp_fit_range = []
 
       fig, ax = plt.subplots()
-      evts, bin_edges, patches = ax.hist(charge, bins=NBINS, range=(MINQ,MAXQ), ec="white")
+      if (not hasLed):
+        evts, bin_edges, patches = ax.hist(charge, bins=NBINS, range=(MINQ,MAXQ), ec="white")
       ax.set_title("charge distribution for pmt #%d"%pmt)
       ax.set_xlabel("charge [nC]")
       ax.set_ylabel("n events")
+      if (hasLed):
+        ax.plot(bin_centers, evts)
       plt.show()
       ped_exist = str(input("Is the pedestal visible? [y/N]: "))
       if (ped_exist in ["y", "Y", "yes", "Yes", "YES", "yEs"]):
@@ -193,14 +212,15 @@ if __name__=='__main__':
         print("Invalid input. Assuming pedestal is not present...")
 
       #get midpoint of bins & uncertainty
-      bin_centers = np.array(bin_edges[:-1]+(bin_edges[1]-bin_edges[0])/2.)
-      evts_unc = []
-      for i in range(len(evts)):  #TODO:how ROOT do uncertainty?
-        if (evts[i] <= 0):
-          evts_unc.append(1)
-        else:
-          evts_unc.append(np.sqrt(evts[i]))
-      evts_unc = np.array(evts_unc)
+      if (not hasLed):
+        bin_centers = np.array(bin_edges[:-1]+(bin_edges[1]-bin_edges[0])/2.)
+        evts_unc = []
+        for i in range(len(evts)):  #TODO:how ROOT do uncertainty?
+          if (evts[i] <= 0):
+            evts_unc.append(1)
+          else:
+            evts_unc.append(np.sqrt(evts[i]))
+        evts_unc = np.array(evts_unc)
 
       while not PedFitComplete:
         #Fit pedestal and exponential tail from failed dynode hits
@@ -286,6 +306,7 @@ if __name__=='__main__':
         if (UseDefault in ["y", "Y", "yes", "Yes", "YES", "yEs"]):
           if (VisiblePed == 0.):  #if ped not visible
           ##### SPECIAL FITS #####################################
+            '''
             if (pmt == 343):
               print(" [debug] fitting pmt #343")
               GainFinder.upper_bounds = [1E4, 0.007, 0.0025]
@@ -310,6 +331,10 @@ if __name__=='__main__':
               print(GainFinder.upper_bounds)
               popt, pcov, xdata, ydata, y_unc = GainFinder.FitPEPeaks(evts, bin_centers, evts_unc, exclude_ped=False, subtract_ped=False)
               #popt, pcov, xdata, ydata, y_unc = GainFinder.FitPEPeaks(evts, bin_centers, evts_unc, exclude_ped=False, subtract_ped=False, fit_range=init_params["GaussFitRange"])   #using fit range
+            '''
+            #popt, pcov, xdata, ydata, y_unc = GainFinder.FitPEPeaks(evts, bin_centers, evts_unc, exclude_ped=False, subtract_ped=False)
+            #using fit range
+            popt, pcov, xdata, ydata, y_unc = GainFinder.FitPEPeaks(evts, bin_centers, evts_unc, exclude_ped=False, subtract_ped=False, fit_range=init_params["GaussFitRange"])
           else:   #if ped is visible
             if (pmt == 343):
               print(" [debug] fitting pmt #343")
@@ -325,7 +350,7 @@ if __name__=='__main__':
               popt, pcov, xdata, ydata, y_unc = GainFinder.FitPEPeaks(evts, bin_centers, evts_unc, exclude_ped=False, subtract_ped=True)
         elif (UseDefault in ["n", "N", "no", "No", "NO", "nO"]):
           InitialParams = pin.GetInitialParameters(fitType)
-          popt, pcov, xdata, ydata, y_unc = GainFinder.FitPEPeaks(charge)
+          #popt, pcov, xdata, ydata, y_unc = GainFinder.FitPEPeaks(charge)
 
         if popt is None:
           print("FIT FAILED.  WE'RE MOVING ON TO THE NEXT CHANNEL")
