@@ -45,8 +45,8 @@ class GainFinder(object):
   def setBounds(self, lower_bounds, upper_bounds):
     self.lower_bounds = lower_bounds
     self.upper_bounds = upper_bounds
-    print(" [debug] self.lower: ", self.lower_bounds)
-    print(" [debug] self.upper: ", self.upper_bounds)
+    print(" [debug] fit params lower bounds: ", self.lower_bounds)
+    print(" [debug] fit params upper bounds: ", self.upper_bounds, "\n")
 
   def FitPedestal(self, evts, bin_centers, evts_unc, init_params, fit_range, fit_tail=False, exp_fit_range=[]):
     '''

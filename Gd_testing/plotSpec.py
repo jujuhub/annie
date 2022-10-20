@@ -9,6 +9,7 @@
 
 #imports
 import argparse
+from datetime import datetime
 from parse import parse
 import sys, os
 import numpy as np
@@ -17,7 +18,7 @@ import pandas as pd
 
 #defines
 DATADIR = "./data/"
-NPLOTS = 5
+NPLOTS = 3
 
 
 #main
@@ -25,7 +26,7 @@ if __name__=='__main__':
   #load data
   flist = os.listdir(DATADIR)
   flist.sort()
-  print(flist)  #debug
+  print("sorted files:\n", flist)  #debug
 
   pattern = "File_{date}_{time}_{matname}.txt"
   bl_files = []   #assumes files are named consistently
@@ -43,10 +44,10 @@ if __name__=='__main__':
     if (tmp['matname'] == "falmat_undersea_1pct_Gd"):
       msc_files.append((f,tmp['date']))
 
-  print(bl_files)   #debug
-  print(gd_files)
-  print(mat_files)
-  print(msc_files)
+  print("baseline:\n", bl_files)   #debug
+  print("Gd:\n", gd_files)
+  print("material:\n", mat_files)
+  print("misc:\n", msc_files)
 
   fig, ax = plt.subplots(1,1, sharex=True, sharey=True)
 
@@ -61,32 +62,26 @@ if __name__=='__main__':
   ax.plot(df_Gd["Wavelength nm."], pd.to_numeric(df_Gd["Abs."]), label='1% Gd soln')
   
   #plot material
-  for (mf,dt) in mat_files:
+  for (mf,dt) in mat_files[-NPLOTS:]:
     raw = pd.read_csv(DATADIR+mf, sep=',', header=0, skiprows=1)
     df = raw[raw["Abs."] != ' ']
-    ax.plot(df["Wavelength nm."], pd.to_numeric(df["Abs."]), label=dt)
+    dtlabel = datetime.strptime(dt, '%y%m%d').date().isoformat()
+    ax.plot(df["Wavelength nm."], pd.to_numeric(df["Abs."]), label=dtlabel)
 
-  raw = pd.read_csv(DATADIR+"File_211215_121946_macartney_bluecable_1pct_Gd.txt", sep=',', header=0, skiprows=1)
-  df1 = raw[raw["Abs."] != ' ']
-
-
-  raw = pd.read_csv(DATADIR+"File_211216_121210_macartney_bluecable_1pct_Gd.txt", sep=',', header=0, skiprows=1)
-  df2 = raw[raw["Abs."] != ' ']
-
-  raw = pd.read_csv(DATADIR+"File_200811_103147_falmat_undersea_1pct_Gd.txt", sep=',', header=0, skiprows=1)
-  df3 = raw[raw["Abs."] != ' ']
-
-#  fig, ax = plt.subplots(1,1, sharex=True, sharey=True)
-#  ax.plot(df_bl["Wavelength nm."], pd.to_numeric(df_bl["Abs."]), label='DI H2O baseline')
-#  ax.plot(df_Gd["Wavelength nm."], pd.to_numeric(df_Gd["Abs."]), label='1% Gd soln')
-#  ax.plot(df1["Wavelength nm."], pd.to_numeric(df1["Abs."]), label='after 15 mins')
-#  ax.plot(df2["Wavelength nm."], pd.to_numeric(df2["Abs."]), label='after 24 hrs')
   ax.legend()
   ax.set_title("blue MacArtney 13-pin cable")
   ax.set_xlabel("Wavelength [nm]")
   ax.set_ylabel("Abs [a.u.]")
+  ax.set_ylim(ymax=1.25)
   plt.savefig("MA_blue13p_cable.png", dpi=300)
-  ax.plot(df3["Wavelength nm."], pd.to_numeric(df3["Abs."]), label='Falmat after ~1 yr')
+  ax.set_xlim(194.,420.)
+  plt.savefig("MA_blue13p_cable_zoomx.png", dpi=300)
+
+  #plot misc
+  raw = pd.read_csv(DATADIR+msc_files[0][0], sep=',', header=0, skiprows=1)
+  df_msc = raw[raw["Abs."] != ' ']
+  ax.plot(df_msc["Wavelength nm."], pd.to_numeric(df_msc["Abs."]), label='Falmat after ~1 yr')
+
   ax.legend()
   plt.savefig("MA_blue13p_cable_wFalmat.png", dpi=300)
   plt.show()

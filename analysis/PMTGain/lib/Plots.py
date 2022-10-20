@@ -104,8 +104,18 @@ def PlotHistPEDAndPEs(xdata,ydata,pedparams,peparams,fittype):
     leg.draw_frame(True)
     plt.show()
 
-def PlotHistPEDAndPEs_V2(xdata,ydata,pedparams,peparams,fittype, ped_present):
-    plt.plot(xdata,ydata,linestyle='None',marker='o',markersize=5)
+def PlotHistPEDAndPEs_V2(pmt, dsrc, xdata, ydata, bin_centers, evts, pedparams, peparams, fittype, ped_present):
+    dsrc_str = ""
+    if (dsrc == 1): 
+      dsrc_str = "AmBe bkg"
+    if (dsrc == 2): 
+      dsrc_str = "AmBe src"
+    if (dsrc == 5): 
+      dsrc_str = "LED"
+
+    plt.figure(figsize=(11.90,8.3))
+    plt.plot(bin_centers, evts, linestyle='None', marker='s', markersize=3)
+    plt.plot(xdata, ydata, linestyle='None', marker='o', markersize=4)
     if (ped_present == 1.):
       yped = fu.gauss1(xdata,pedparams[0],pedparams[1],pedparams[2])
       plt.plot(xdata,yped,marker='None',label='Pedestal')
@@ -161,13 +171,19 @@ def PlotHistPEDAndPEs_V2(xdata,ydata,pedparams,peparams,fittype, ped_present):
     plt.xlabel("Charge (nC)")
     plt.ylabel("Entries")
     plt.ylim(ymin=0.9, ymax=0.5E4)  #juju
-    plt.xlim(-0.001, 0.021) #juju
+    plt.xlim(-0.0001, 0.0051) #juju
     plt.yscale("log")
-    plt.title("Comparison of ped, PE distribution fits to data")
-    leg = plt.legend(loc=1,fontsize=24)
+    plt.title("Comparison of ped, PE distribution fits to data for PMT#" +str(pmt) + " (" + dsrc_str + ")", fontsize=23)
+    leg = plt.legend(loc=1,fontsize=20)
     leg.set_frame_on(True)
     leg.draw_frame(True)
+    #plt.show()
+    if ((dsrc == 1) or (dsrc == 2)):
+      plt.savefig("PMT_"+str(pmt)+"_ambe.png",dpi=300)
+    if (dsrc == 5):
+      plt.savefig("PMT_"+str(pmt)+"_led.png",dpi=300)
     plt.show()
+    #plt.close()   #needed in a loop
 
 def PlotDataAndSPEMean(tot_hist_data,totped_fit, bkg_hist_data,bkgped_fit,SPEMean):
     plt.plot(tot_hist_data["bins"],tot_hist_data["bin_heights"],linestyle='None',marker='o',markersize=7,label='signal data')
