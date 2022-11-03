@@ -1,0 +1,110 @@
+{
+    "Gauss1": {
+        "Channel": [
+        ],
+        "RunNumber": [
+        ],
+        "PV": [
+        ],
+        "PV_unc": [
+        ],
+        "c1Height": [
+        ],
+        "c1Mu": [
+        ],
+        "c1Sigma": [
+        ],
+        "c1Height_unc": [
+        ],
+        "c1Mu_unc": [
+        ],
+        "c1Sigma_unc": [
+        ]
+    },
+    "EXP2SPE": {
+        "Channel": [
+        ],
+        "RunNumber": [
+        ],
+        "PV": [
+        ],
+        "PV_unc": [
+        ],
+        "c1Height": [
+        ],
+        "c1Mu": [
+        ],
+        "c1Sigma": [
+        ],
+        "c2HScale": [
+        ],
+        "c2MScale": [
+        ],
+        "c2SScale": [
+        ],
+        "SCScale": [
+        ],
+        "c1Height_unc": [
+        ],
+        "c1Mu_unc": [
+        ],
+        "c1Sigma_unc": [
+        ],
+        "c2HScale_unc": [
+        ],
+        "c2MScale_unc": [
+        ],
+        "c2SScale_unc": [
+        ],
+        "SCScale_unc": [
+        ],
+        "CExp": [
+        ],
+        "f_mu": [
+        ],
+        "tau": [
+        ],
+        "CExp_unc": [
+        ],
+        "f_mu_unc": [
+        ],
+        "tau_unc": [
+        ]
+    },
+    "SPE": {
+        "Channel": [
+        ],
+        "RunNumber": [
+        ],
+        "PV": [
+        ],
+        "PV_unc": [
+        ],
+        "c1Height": [
+        ],
+        "c1Mu": [
+        ],
+        "c1Sigma": [
+        ],
+        "c2HScale": [
+        ],
+        "c2MScale": [
+        ],
+        "c2SScale": [
+        ],
+        "SCScale": [
+        ],
+        "c1Height_unc": [
+        ],
+        "c1Mu_unc": [
+        ],
+        "c1Sigma_unc": [
+        ],
+        "c2HScale_unc": [
+        ],
+        "c2MScale_unc": [
+        ],
+        "c2SScale_unc": [
+        ]
+    }
+}
