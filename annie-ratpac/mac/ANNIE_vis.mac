@@ -1,0 +1,84 @@
+/glg4debug/glg4param omit_muon_processes  0.0
+/glg4debug/glg4param omit_hadronic_processes  0.0
+
+/tracking/verbose 1
+
+/tracking/storeTrajectory 1
+/tracking/discardParticleTrajectory opticalphoton
+
+/rat/db/set DETECTOR experiment "ANNIE"
+/rat/db/set DETECTOR geo_file "ANNIE/ANNIE_run2_config12.geo"
+/rat/db/load ANNIE/ANNIE_AmBesource_d4.geo
+#/rat/db/set DETECTOR gdml_file "annie_v04.gdml"
+#/rat/db/load ANNIE/ANNIE_InnerStructure.geo
+#/rat/db/load ANNIE/ANNIE_MRD_FACC.geo
+
+/run/initialize
+
+/process/activate Cerenkov
+/glg4scint/on
+#/glg4scint/reemission on
+
+#/process/inactivate DeferTrackProc all
+#/process/activate DeferTrackProc gamma
+#/process/activate DeferTrackProc e+
+#/process/activate DeferTrackProc e-
+
+#initialize the visualizer
+/vis/open OGLIQt 10000
+/vis/scene/create
+
+/vis/scene/add/volume
+/vis/scene/add/trajectories
+/vis/viewer/reset
+/vis/viewer/set/style surface
+/vis/drawVolume
+
+#/vis/viewer/set/viewpointThetaPhi 20 20
+/vis/viewer/set/viewpointVector -0.5 0.0 0.0
+/vis/viewer/zoom 1.0
+/vis/viewer/pan -0.4 -0.5 m  # this finally works !
+/vis/viewer/set/upVector 0 1 0
+
+#####################
+# BEGIN EVENT LOOP
+
+/rat/proc simpledaq
+/rat/proc count
+/rat/procset update 10
+/rat/proc fitcentroid
+/rat/proc prune
+/rat/procset prune "mc.track:opticalphoton"
+
+# Use IO.default_output_filename
+/rat/proclast outroot
+
+/generator/add combo gun:point
+/generator/pos/set 0.1 -33.8 1749.4
+/generator/vtx/set geantino 0 0 -1 10
+/run/beamOn 1
+
+/generator/vtx/set geantino 0 0 1 10
+/run/beamOn 1
+
+/generator/vtx/set geantino 0 -1 0 10
+/run/beamOn 1
+
+/generator/vtx/set geantino 0 1 0 10
+/run/beamOn 1
+
+/generator/vtx/set geantino -1 0 0 10
+/run/beamOn 1
+
+/generator/vtx/set geantino 1 0 0 10
+/run/beamOn 1
+
+#/generator/vtx/set neutron 1 0 0 1
+#/run/beamOn 1
+
+#END EVENT LOOP
+#####################
+
+/vis/viewer/refresh
+/vis/viewer/flush
+
