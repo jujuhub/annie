@@ -1,115 +1,122 @@
-# This is a python script used in conjunction with charges.cc
-# Written by: Julie He <juhe@ucdavis.edu>
-# Last updated: Aug 11, 2018
+#!/opt/local/bin/python2.7
+# Gain calculation from histogram acquired from plotCSV.py
+# by Sam Crnkovich
+# sdcrnkovich@ucdavis.edu
 
-import sys
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
+import matplotlib.pyplot as plt
 
-# CONSTANTS
-N_HIST_BINS = 100
-E_CHARGE = 1.60217662E-19 # C
-NEG_CHARGE_CUT = -0.20E-12
+CHARGEDATAFILE='my_charges'
+DATAPATH='.'
+N_HIST_BINS=100
 
-# CURVE FIT FUNCTIONS
-def gauss(x, mean, sd, n):
-	return (n/(np.sqrt(2*np.pi)*sd))*np.exp(-(x-mean)**2/(2*sd**2))
+def plot():
+    ######################################
+    # Setting up test data
+    def norm(x, mean, sd, n):
+        norm = [(n/(np.sqrt(2*np.pi)*sd))*np.exp(-(x[i] - mean)**2/(2*sd**2))
+            for i in range(x.size)]
+        return norm
+    print 'attempting to open ' + (DATAPATH + '/{0}.txt').format(CHARGEDATAFILE)
+    with open((DATAPATH + '/{0}.txt').format(CHARGEDATAFILE)) as f1:
+        charge = np.loadtxt(f1, dtype = float)
 
-def double_gauss(x, mean, sd, n):
-	return (gauss(x, popt_ped[0], popt_ped[1], popt_ped[2]) + (n/(np.sqrt(2*np.pi)*sd))*np.exp(-(x-mean)**2/(2*sd**2)))
 
-# MAIN
-def main(filename):
-	with open(filename) as f:
-		charge = np.loadtxt(f, dtype=float)
+    # plot the charge distribution
+    fig = plt.figure()
+    ax1 = fig.add_subplot(111)
 
-	# skipping VERY negative charge values (early pulses)
-	i = 0
-	new_charge = []
-	counter = 0
+    y_data, bins, patches = ax1.hist(charge, bins=N_HIST_BINS,
+                                     facecolor='orange')
+    plt.yscale('log', nonposy='clip')
+    plt.xlabel('Coulombs')
+    plt.ylabel('Counts')
+    #plt.show()
 
-	while (i < len(charge)):
-		if (charge[i] < NEG_CHARGE_CUT):
-			counter += 1
-		else:
-			new_charge.append(charge[i])
-		i += 1
+    bins = np.array(bins)
+    bins = 1E12*bins
+    bin_centers = np.array(bins[:-1]+(bins[1]-bins[0])/2.0)
+    
+    x_points = np.linspace(-1E-12, 7E-12, 1000)
 
-	print(str(counter) + " charges skipped")
-	new_charge = np.array(new_charge)
+    # Bin uncertainties found using square root of N approximation
+    uncert_data = []
+    for i in range(y_data.size):
+        uncert_data.append(np.sqrt(y_data[i]))
+        if uncert_data[i] == 0:
+            uncert_data[i] =  1
 
-	# make charge distribution histogram
-	fig = plt.figure(figsize=(12,8))
-	ax1 = fig.add_subplot(111)
-#	plt.yscale('log', nonposy='clip')
-#	plt.xlabel('charge (C)', fontsize=13)
-#	plt.ylabel('count', fontsize=13)
+    ######################################
+    # Fitting the 0 p.e. pedestal
+    # Take only first half of data (where our pedestal is located) ; this may be a problem
 
-	ydata, bins, patches = ax1.hist(new_charge, bins=N_HIST_BINS, facecolor='orange')
+    # Initial guess to the parameters of the pedestal gaussian
+    gauss_guess = [0, 1, 1000]
 
-	bins=1.E12*bins
-	bin_centers = np.array(bins[:-1] + (bins[1]-bins[0])/2.0)
+    popt_ped, pcov_ped = curve_fit(norm, bin_centers[:len(bin_centers)/2],
+                                   y_data[:len(bin_centers)/2],
+                                   p0 = gauss_guess,
+                                   sigma = uncert_data[:len(bin_centers)/2])
 
-	# bin uncertainties
-	uncert_data = []
-	for i in range(ydata.size):
-		uncert_data.append(np.sqrt(ydata[i]))
-		if uncert_data[i] == 0:
-			uncert_data[i] = 1
+    yfit_ped = norm(bin_centers, *popt_ped)
 
-	# pedestal fit
-	ped_index = 0
-	for i in range(ydata.size):
-		if (ydata[i] == max(ydata)):
-			ped_index = i # find index of pedestal peak
-#	iPedStart = 0
-#	if (ped_index > 8): # arbitrarily chosen numbers
-#		iPedStart = ped_index - 5
-	ped_end_index = ped_index + 5
+    # Now fit the 1 p.e. using a double gaussian fit
+    gauss_approx = [1, 2, 100]
 
-	popt_ped, pcov_ped = curve_fit(gauss, bin_centers[:ped_end_index], ydata[:ped_end_index], p0=[0, 0.5, 2500], sigma=uncert_data[:ped_end_index])
+    def double_gauss(x, mu, sigma, n):
+        gauss = (norm(x, popt_ped[0], popt_ped[1], popt_ped[2]) +
+                 (n/(np.sqrt(2*np.pi)*sigma))*np.exp(-(x - mu)**2/(2*sigma**2)))
+        return gauss
+    
+    popt, pcov = curve_fit(double_gauss, bin_centers, y_data,
+                           p0=gauss_approx, sigma=uncert_data)
 
-	ped_fit = gauss(bin_centers, *popt_ped)
+    
+    popt[1] = np.abs(popt[1])
+    print 'mean:', popt[0]
+    print 'standard deviation:', popt[1] 
+    print 'normalization constant:', popt[2]
 
-	# spe fit
-	spe_index = 0
-	for i in range(ydata[ped_end_index:ped_end_index + 10].size):
-		if (ydata[i + ped_end_index] == max(ydata[ped_end_index:ped_end_index + 10])):
-			spe_index = i + ped_end_index
-	spe_end_index = spe_index + 5
+    y_fit = norm(bin_centers, *popt) # The *popt passes the arguments to func
 
-	popt_spe, pcov_spe = curve_fit(gauss, bin_centers[ped_end_index:spe_end_index], ydata[ped_end_index:spe_end_index], p0=[1.5, 1, 350], sigma=uncert_data[ped_end_index:spe_end_index])	
+    two_gauss_fit = double_gauss(bin_centers, *popt)
 
-	spe_fit = gauss(bin_centers, *popt_spe)
+    bin_centers = bin_centers*1E-12
 
-	bin_centers = bin_centers*1E-12
-	gain = (popt_spe[0] - popt_ped[0])*1E-12/E_CHARGE
 
-	valley_index = 0
-	for i in range(ydata[:spe_index].size):
-		if ydata[i] == min(ydata[ped_index:spe_index]):
-			valley_index = i + ped_index
-	p2v = ydata[spe_index]/ydata[valley_index]
-			
-	print("Gain = " + str(gain))
-	print("Peak-to-valley ratio = " + str(p2v))
+     # Calculate the chi-squared
+    chi_squared = 0
+    for i in range(y_data.size):
+        chi_squared += (y_data[i] - two_gauss_fit[i])**2/(uncert_data[i]**2)
+    reduced_chi_square = chi_squared/(len(bin_centers) - 6)
+    print 'chi-squared:', chi_squared
+    print 'reduced_chi_square:', reduced_chi_square
 
-	# plotting
-#	plt.figure(figsize=(12,8))
-	plt.title("Charge Distribution with Peak Fitting\n", fontsize=17)
-	plt.xlabel("charge (C)", fontsize=15)
-	plt.ylabel("count", fontsize=15)
-	plt.hist(new_charge, bins=N_HIST_BINS)
-	plt.plot(bin_centers, ped_fit, label="Pedestal", lw=2)
-	plt.plot(bin_centers, spe_fit, label="Single PE", lw=2)
-	plt.legend(loc=1)
-	plt.show()
+    # Plot the fits
+    plt.plot(bin_centers, y_data, marker='*', lw=0, label='Output Charge Histogram')
+    plt.plot(bin_centers, y_fit, label='1 P.E. Gaussian Fit')
+    plt.plot(bin_centers, yfit_ped, label = '0 P.E. Gaussian Fit')
+    plt.xlabel('PMT Output Charge(C)')
+    plt.ylabel('Counts')
+    plt.yscale('log')
+    plt.ylim(1, 10000)
+    plt.legend(loc=1)
+    plt.errorbar(bin_centers, y_data, yerr=uncert_data, ls = 'None',
+                 marker='o', ms=4)
+    plt.show()
+    return [popt[0]*1E-12 , popt[1]*1E-12, popt[2]]
 
-	return
+def main():
+    print'running'
+    data_array = plot()
+    print 1
+    q_out = data_array[0]
+    q_in = 1.60217657E-19 # charge in Coulumbs
+    gain = q_out/q_in
+    uncert_gain = data_array[1]/q_in/np.sqrt(data_array[2])
+    print 'gain:', gain ,'+/-', uncert_gain
+    return
 
 if __name__ == '__main__':
-	if (len(sys.argv) != 2):
-		print("ERROR: Invalid file input!\nSyntax: python gainCalc.py <filename.txt>\n")
-	else:
-		main(sys.argv[-1])
+    main()
