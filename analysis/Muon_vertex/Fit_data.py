@@ -14,6 +14,7 @@ import sys
 if (len(sys.argv) != 2):
   print(" @@@@@ MISSING ev_ai_eta_R{RUN}.txt FILE !! @@@@@ ")
   print("   syntax: python3 Fit_data.py ev_ai_eta_R{RUN}.txt")
+  print("   path: ~/annie/analysis/FILE")
   exit(-1)
 
 DATAFILE = sys.argv[-1]
@@ -43,12 +44,12 @@ class ManyToOneRNN(nn.Module):
 
 
 # ## Load model
-model = torch.load('/Users/juhe/annie/analysis/playground/model.pth')
+model = torch.load('/home/jhe/annie/analysis/playground/model.pth')
 model.eval()
 
 
 # ## Load data (needs to be in Tensor format)
-data = pd.read_csv('/Users/juhe/annie/analysis/' + DATAFILE, header=None, names=['evid','cluster_time','ai','eta'])
+data = pd.read_csv('/home/jhe/annie/analysis/' + DATAFILE, header=None, names=['evid','cluster_time','ai','eta'])
 print(data.head(5))
 
 data = data.groupby(['evid', 'cluster_time']).agg(list).reset_index()

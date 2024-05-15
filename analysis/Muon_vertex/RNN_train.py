@@ -1,14 +1,9 @@
-
 # coding: utf-8
 
 # ## Import modules
-
-# In[2]:
-
-
+import numpy as np
 import pandas as pd
 import torch
-import numpy as np
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
 import torch.nn as nn
@@ -17,54 +12,27 @@ from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 import time
 
-#import pickle5 as pickle
-
 
 # ## Load data, using half of the dataset to train
-
-# In[3]:
-
-
 data = pd.read_hdf("data.h5", 'df')
-# with open("data.h5", "rb") as fh:
-#    data = pickle.load(fh)
-# data = pd.read_csv("data.csv")
 train_df, test_df = train_test_split(data, test_size=0.5)
 test_df, CV_df = train_test_split(test_df, test_size=0.5)
+# validation used to keep track of training set; monitor accuracy
 
-
-# In[6]:
-
-
+# ### Preview data
 print("len train_df: " + str(len(train_df)))
 train_df.head(5)
-
-
-# In[7]:
-
 
 print("len test_df: " + str(len(test_df)))
 test_df.head(5)
 
-
-# In[8]:
-
-
 print("len CV_df: " + str(len(CV_df)))
 CV_df.head(5)
-
-
-# In[4]:
-
 
 print(data[data['truetracklen'] < 0.])
 
 
 # ## Define MyDataset class
-
-# In[9]:
-
-
 class MyDataset(Dataset):
     def __init__(self, dataframe):
         self.data = dataframe
@@ -79,10 +47,7 @@ class MyDataset(Dataset):
         target = torch.tensor(self.data.iloc[idx, -1], dtype=torch.float32)
         return evid, features, target   #added evid as return value
 
-
-# In[10]:
-
-
+# ### Prepare data for training
 batch_size = 1 # Adjust batch size as needed
 # sequence_length = 3  # Adjust sequence length as needed
 shuffle = True  # Shuffle the data during training (recommended)
@@ -90,17 +55,15 @@ dataS = MyDataset(data)
 train = MyDataset(train_df)
 test = MyDataset(test_df)
 CVS = MyDataset(CV_df)
-trainloader = DataLoader(train, batch_size=1, shuffle=shuffle)
+trainloader = DataLoader(train, batch_size=1, shuffle=shuffle) #how much data to train per epoch
 testloader = DataLoader(test)
 dataloader = DataLoader(dataS, batch_size=1, shuffle=shuffle)
 CVloader = DataLoader(CVS)
 
+print(dataloader)
+
 
 # ## Define ManyToOneRNN class
-
-# In[11]:
-
-
 class ManyToOneRNN(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, output_size):
         super(ManyToOneRNN, self).__init__()
@@ -119,17 +82,14 @@ class ManyToOneRNN(nn.Module):
         out = self.fc(out[:, -1, :])
         return out
 
-
-# In[15]:
-
-
+# ### Set parameters for training model
 cost_list = []
 CVcost_list = []
 input_size = 2
 hidden_size = 4
 num_layers = 1
 output_size = 1
-learning_rate = 0.001
+learning_rate = 0.001   #can tune this for better model
 num_epochs = 1000   #default:10000
 
 model = ManyToOneRNN(input_size, hidden_size, num_layers, output_size)
@@ -139,9 +99,7 @@ optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 N = 100    #for printing progress
 
 
-# In[16]:
-
-
+# ## Define training
 def train():
     model.train()
 
@@ -182,25 +140,15 @@ def train():
 
 
 # ## Train model
-
-# In[ ]:
-
-
 tstart=time.time()
 print("start time={}".format(tstart))
 train()
-torch.save(model, 'model.pth')
+torch.save(model, 'model.pth')    # save model
 
 print((time.time()-tstart))
 
 
 # ### Plot the loss and accuracy
-
-# In[79]:
-
-
-# Plot the loss and accuracy
-
 fig, ax1 = plt.subplots()
 color = 'tab:red'
 ax1.plot(cost_list[200::100], color=color,label="Train")
@@ -209,21 +157,22 @@ ax1.set_xlabel('epoch', color=color)
 ax1.set_ylabel('Cost', color=color)
 ax1.tick_params(axis='y', color=color)
 ax1.legend()
+plt.savefig("loss.png", dpi=300)
+
+# want red and blue to be close and cost to be low
 
 
-# In[80]:
-
-
+# ## Test model
 def test(loader):
     model.eval()
 
     #open output file for fitted track length
-    out_f = open("fitbyeye_wcsim_0-99_RNN.txt", "a")
+    out_f = open("fitbyeye_wcsim_RNN.txt", "a")
     
     diff_list = []
     for evid,data,target in loader:  # Iterate in batches over the training/test dataset.
         with torch.no_grad():
-            out = model(data)
+            out = model(data)   # just need this for data
             diff = out - target  # Use the class with highest probability.
             #print(evid[0], out.data.numpy()[0][0], target.data.numpy()[0])   #evid, fit, truelen
             #print(diff)
@@ -233,14 +182,10 @@ def test(loader):
     out_f.close()
     return diff_list  # Derive ratio of correct predictions.
 
-
-# In[86]:
-
-
 diff_list = test(dataloader)
 
 
-
+# ### Plot difference btwn model fit and truth info
 plt.hist(diff_list)
 
 mean = np.mean(diff_list)
@@ -259,10 +204,11 @@ plt.title("RNN Muon Vetex Reconstruction Performance")
 # plt.legend(custom_labels)
 plt.savefig("RNN.png")
 
-
-# In[85]:
-
-
 print("mean: ",mean)
 print("std: " + str(std))
+
+
+# ## Save the model
+#torch.save or model.save
+#load model in another script and just use
 
