@@ -10,6 +10,7 @@ if (len(sys.argv) != 2):
 INFILENAME = sys.argv[-1]
 RUN = INFILENAME.split('_')[1]
 print("run: " + RUN)
+print("run (wo the run):" + RUN[1:])
 
 # open output file
 OUTFILENAME = "my_inputs_" + RUN + "_filtered.txt" 
@@ -26,8 +27,8 @@ print("num of parts: " + str(len(df)))
 
 # write out filtered list
 for idx in range(len(df)):
-    print("ProcessedRawData_TankAndMRDAndCTC_R2630S0" + df.iloc[idx,0])
-    out_f.write("/pnfs/annie/persistent/users/mnieslon/data/processed_hits_improved/R2630/ProcessedRawData_TankAndMRDAndCTC_R2630S0" + df.iloc[idx,0] + "\n")
+    print("ProcessedRawData_TankAndMRDAndCTC_R" + RUN[1:] + "S0" + df.iloc[idx,0])
+    out_f.write("/pnfs/annie/persistent/users/mnieslon/data/processed_hits_improved/R" + RUN[1:] + "/ProcessedRawData_TankAndMRDAndCTC_R" + RUN[1:] + "S0" + df.iloc[idx,0] + "\n")
 
 # close file
 out_f.close()
